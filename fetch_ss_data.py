@@ -34,8 +34,9 @@ if __name__ == "__main__":
     for arxiv_id in db.keys():
         if arxiv_id not in ss_db:
             ss_data = ss.get_data(arxiv_id)
-            ss_db[arxiv_id] = ss_data
-            num_added_total += 1
+            if ss_data is not None:
+                ss_db[arxiv_id] = ss_data
+                num_added_total += 1
 
         if num_added_total % 100 == 0:
             print(
