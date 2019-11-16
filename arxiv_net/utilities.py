@@ -9,9 +9,10 @@ from arxiv_net import ROOT_DIR
 # -----------------------------------------------------------------------------
 class Config(object):
     # main paper information repo file
-    db_path = f'{ROOT_DIR}/../db.p'
-    ss_db_path = f'{ROOT_DIR}/../ss_db.p'
-    bert_title_embed_db_path = "bert_title_embed_db.p"
+    db_path = f'{ROOT_DIR}/../data/db.p'
+    user_db_path = f'{ROOT_DIR}/../data/users.db'
+    ss_db_path = f'{ROOT_DIR}/../data/ss_db.p'
+    bert_title_embed_db_path = f'{ROOT_DIR}/../data/bert_title_embed_db.p'
     bert_abstract_embed_db_path = "bert_abstract_embed_db.p"
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
