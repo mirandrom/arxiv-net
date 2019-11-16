@@ -13,7 +13,11 @@ from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.server import app
 from arxiv_net.users import USER_DIR
 from arxiv_net.utilities import Config
+from arxiv_net.textsearch.whoosh import get_index, search_index
 
+################################################################################
+# DATA LOADING
+################################################################################
 DB = pickle.load(open(Config.ss_db_path, 'rb'))
 # TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
 
@@ -24,6 +28,7 @@ TOPICS: Dict[Topic, Set[PaperID]] = defaultdict(set)
 TITLES: Dict[Title, Set[PaperID]] = defaultdict(set)
 LOOKBACKS = ['This Week', 'This Month', 'This Year',
              'Filter By Year (Callback Popup)']
+index = get_index()
 
 for paper_id, paper in tqdm(DB.items()):
     if paper is None:
@@ -34,6 +39,10 @@ for paper_id, paper in tqdm(DB.items()):
     for topic in paper.topics:
         TOPICS[topic.topic].add(paper_id)
     TITLES[paper.title].add(paper_id)
+
+################################################################################
+# HTML DIVS
+################################################################################
 
 date_filter = html.Div(
     id='date-div',
@@ -200,6 +209,10 @@ layout = html.Div([
     )
 ])
 
+################################################################################
+# CALLBACKS
+################################################################################
+
 
 @app.callback(
     Output('filters', 'children'),
@@ -263,12 +276,8 @@ def display_feed(
 
 # The following 3 callbacks should probably be handled with elastic search
 def _soft_match_title(user_title: str) -> Set[PaperID]:
-    # TODO: Adjust for casing
-    matched = set()
-    for title, papers in TITLES.items():
-        if user_title == 'Any' or user_title in title:
-            matched |= papers
-    return matched
+    search_results = set(search_index(user_title, "abstract", index))
+    return search_results
 
 
 def _soft_match_author(user_author: str) -> Set[PaperID]:
