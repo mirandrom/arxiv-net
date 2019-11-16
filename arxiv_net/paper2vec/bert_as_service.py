@@ -37,15 +37,19 @@ usage: bert-serving-server [-h] -model_dir MODEL_DIR
 """
 
 
-def run_server(out_dir = "../bas_out"):
+def run_server(out_dir = "../bas_out",
+               max_seq_len=128,
+               num_workers=4,
+               max_batch_size=64,
+               ):
     model_dir = (Path(__file__).parent / "uncased_L-12_H-768_A-12").absolute()
     print(f"Loading BERT from {model_dir}")
     bert_server_args = get_args_parser().parse_args([
                                          '-model_dir', str(model_dir),
-                                         '-max_seq_len', '128',
+                                         '-max_seq_len', str(max_seq_len),
                                          # '-pooling_strategy', 'REDUCE_MEAN_MAX',
-                                         '-num_worker', '4',
-                                         '-max_batch_size', '64',
+                                         '-num_worker', str(num_workers),
+                                         '-max_batch_size', str(max_batch_size),
                                          '-port', '5555',
                                          '-port_out', '5556',
                                          '-mask_cls_sep',
