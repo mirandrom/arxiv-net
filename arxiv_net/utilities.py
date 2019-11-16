@@ -3,14 +3,14 @@ import pickle
 import re
 import tempfile
 from contextlib import contextmanager
-
+from arxiv_net import ROOT_DIR
 
 # global settings
 # -----------------------------------------------------------------------------
 class Config(object):
     # main paper information repo file
-    db_path = 'db.p'
-    ss_db_path = 'ss_db.p'
+    db_path = f'{ROOT_DIR}/../db.p'
+    ss_db_path = f'{ROOT_DIR}/../ss_db.p'
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
     txt_dir = os.path.join('data', 'txt')

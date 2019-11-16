@@ -1,25 +1,88 @@
-import json
+import dash_core_components as dcc
+import dash_html_components as html
+from dash.dependencies import Input, Output
+from flask_login import current_user
 
-import dash
-import dash_auth
-import redis
+from arxiv_net.dashboard.pages import login, arxiv_dash
+from arxiv_net.dashboard.server import app
 
-from arxiv_net.dashboard import DASH_DIR
-
-db = redis.StrictRedis(port=6379)
-
-external_stylesheets = [
-    "https://unpkg.com/tachyons@4.10.0/css/tachyons.min.css",
-    "https://cdn.rawgit.com/plotly/dash-app-stylesheets/2d266c578d2a6e8850ebce48fdb52759b2aef506/stylesheet-oil-and-gas.css"
-]
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
-server = app.server
-app.config.suppress_callback_exceptions = True
-
-# Set up simple user accounts
-with open(f'{DASH_DIR}/auth.json', 'r') as f:
-    VALID_USERNAME_PASSWORD_PAIRS = json.load(f)
-auth = dash_auth.BasicAuth(
-    app,
-    VALID_USERNAME_PASSWORD_PAIRS
+header = html.Div(
+    className='header',
+    children=html.Div(
+        className='container-width',
+        style={'height': '100%'},
+        children=[
+            html.Img(
+                src='assets/dash-logo-stripe.svg',
+                className='logo'
+            ),
+            html.Div(className='links', children=[
+                html.Div(id='user-name', className='link'),
+                html.Div(id='logout', className='link')
+            ])
+        ]
+    )
 )
+
+app.layout = html.Div(
+    [
+        header,
+        html.Div([
+            html.Div(
+                html.Div(id='page-content', className='content'),
+                className='content-container'
+            ),
+        ], className='container-width'),
+        dcc.Location(id='url', refresh=False),
+    ]
+)
+
+
+@app.callback(
+    Output('page-content', 'children'),
+    [Input('url', 'pathname')])
+def display_page(pathname):
+    if pathname == '/':
+        return login.layout
+    elif pathname == '/login':
+        return login.layout
+    elif pathname == '/success':
+        if current_user.is_authenticated:
+            return arxiv_dash.layout
+        else:
+            # 'No login page goes here'
+            return arxiv_dash.layout
+            # return login_fd.layout
+    # elif pathname == '/logout':
+    #     if current_user.is_authenticated:
+    #         logout_user()
+    #         return logout.layout
+    #     else:
+    #         return logout.layout
+    else:
+        return '404'
+
+
+@app.callback(
+    Output('user-name', 'children'),
+    [Input('page-content', 'children')])
+def cur_user(input1):
+    if current_user.is_authenticated:
+        return html.Div(current_user.username)
+        # 'User authenticated' return username in get_id()
+    else:
+        return ''
+
+
+@app.callback(
+    Output('logout', 'children'),
+    [Input('page-content', 'children')])
+def user_logout(input1):
+    if current_user.is_authenticated:
+        return html.A('Logout', href='/logout')
+    else:
+        return ''
+
+
+if __name__ == '__main__':
+    app.run_server(host='localhost', port=1337, debug=True)

@@ -1,7 +1,8 @@
-import requests
 import time
-from dataclasses import dataclass, field
-from typing import List
+from dataclasses import dataclass
+from typing import List, Dict
+
+import requests
 
 
 @dataclass
@@ -61,7 +62,8 @@ class SsArxivPaper:
 
 def get_data(arxiv_id: str, to_dataclass: bool = False):
     t = 5
-    r = requests.get(f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
+    r = requests.get(
+        f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
     if not r.ok:
         if r.status_code == 429:
             print(f"Error 429: sleeping for {t} seconds")
@@ -73,11 +75,14 @@ def get_data(arxiv_id: str, to_dataclass: bool = False):
     else:
         r = r.json()
         if to_dataclass:
-            r["authors"] = [SsAuthor(**x) for x in r["authors"]]
-            r["citations"] = [SsReference(**x) for x in r["citations"]]
-            r["references"] = [SsReference(**x) for x in r["references"]]
-            r["topics"] = [SsTopic(**x) for x in r["topics"]]
-            return SsArxivPaper(**r)
+            return _to_dataclass(r)
         else:
             return r
 
+
+def _to_dataclass(r: Dict):
+    r["authors"] = [SsAuthor(**x) for x in r["authors"]]
+    r["citations"] = [SsReference(**x) for x in r["citations"]]
+    r["references"] = [SsReference(**x) for x in r["references"]]
+    r["topics"] = [SsTopic(**x) for x in r["topics"]]
+    return SsArxivPaper(**r)
