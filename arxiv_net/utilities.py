@@ -11,6 +11,7 @@ class Config(object):
     # main paper information repo file
     db_path = f'{ROOT_DIR}/../db.p'
     ss_db_path = f'{ROOT_DIR}/../ss_db.p'
+    bert_title_embed_db_path = "bert_title_embed_db.p"
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
     txt_dir = os.path.join('data', 'txt')
