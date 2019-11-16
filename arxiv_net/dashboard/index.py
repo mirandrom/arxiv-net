@@ -2,8 +2,8 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output
 
-from arxiv_net.app import app
-from arxiv_net.apps import arxiv_dash
+from arxiv_net.dashboard.app import app
+from arxiv_net.dashboard.pages import arxiv_dash
 
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
