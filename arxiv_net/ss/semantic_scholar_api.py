@@ -60,12 +60,13 @@ class SsArxivPaper:
 
 
 def get_data(arxiv_id: str, to_dataclass: bool = False):
+    t = 5
     r = requests.get(f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
     if not r.ok:
         if r.status_code == 429:
-            # TODO: sanity check this
-            # rate limit
-            time.sleep(10)
+            print(f"Error 429: sleeping for {t} seconds")
+            time.sleep(t)
+            t *= 2
         if r.status_code == 404:
             print(f"Error 404 with reason: {r.reason}")
             pass
