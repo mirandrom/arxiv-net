@@ -59,7 +59,7 @@ class SsArxivPaper:
     year: int
 
 
-def get_data(arxiv_id):
+def get_data(arxiv_id: str, to_dataclass: bool = False):
     r = requests.get(f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
     if not r.ok:
         if r.status_code == 429:
@@ -71,9 +71,12 @@ def get_data(arxiv_id):
             pass
     else:
         r = r.json()
-        r["authors"] = [SsAuthor(**x) for x in r["authors"]]
-        r["citations"] = [SsReference(**x) for x in r["citations"]]
-        r["references"] = [SsReference(**x) for x in r["references"]]
-        r["topics"] = [SsTopic(**x) for x in r["topics"]]
-        return SsArxivPaper(**r)
+        if to_dataclass:
+            r["authors"] = [SsAuthor(**x) for x in r["authors"]]
+            r["citations"] = [SsReference(**x) for x in r["citations"]]
+            r["references"] = [SsReference(**x) for x in r["references"]]
+            r["topics"] = [SsTopic(**x) for x in r["topics"]]
+            return SsArxivPaper(**r)
+        else:
+            return r
 
