@@ -10,6 +10,7 @@ from contextlib import contextmanager
 class Config(object):
     # main paper information repo file
     db_path = 'db.p'
+    ss_db_path = 'ss_db.p'
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
     txt_dir = os.path.join('data', 'txt')
