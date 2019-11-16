@@ -5,10 +5,12 @@ from dash.exceptions import PreventUpdate
 
 from arxiv_net.dashboard.app import app
 from arxiv_net.dashboard.assets.style import *
+from arxiv_net.ss.semantic_scholar_api import SsArxivPaper
 
 # TODO: autocomplete
 
 KEYWORDS = ['NLP', 'RL']
+LOOKBACKS = ['This Week', 'This Month', 'This Year', 'Filter By Year (Callback Popup)']
 
 layout = html.Div([
     html.Div(
@@ -130,13 +132,11 @@ layout = html.Div([
                                 children=[
                                     html.Label('Published:',
                                                style={'textAlign': 'center'}),
-                                    dcc.Input(
+                                    dcc.Dropdown(
                                         id='date',
-                                        placeholder='',
-                                        type='text',
-                                        value='David Silver',
-                                        style={'width'    : '100%',
-                                               'textAlign': 'center'}
+                                        options=[{'label': c, 'value': c} for c
+                                                 in LOOKBACKS],
+                                        value=LOOKBACKS[0]
                                     )
                                 ],
                                 style={'display': 'block'},
@@ -186,7 +186,7 @@ layout = html.Div([
         State('section', 'value'),
     ],
 )
-def RL(
+def display_feed(
     clicks,
     button_state,
     section,
@@ -196,9 +196,25 @@ def RL(
     if button_state == 'Stop':
         raise PreventUpdate
     
-    if section == 'Tab 1':
-        return html.P("hello")
-    elif section == 'Tab 2':
-        return html.P("world")
+    if section == 'Recommend':
+        return recommendation_feed()
+    elif section == 'Explore':
+        return exploration_feed()
     else:
         raise ValueError(f'Unknown section {section}')
+
+
+
+
+def exploration_feed() -> html.Ul:
+    return html.Ul(
+    )
+
+def recommendation_feed() -> html.Ul:
+    return html.Ul(
+        html.Li(
+            SsArxivPaper
+        )
+        
+    )
+    
