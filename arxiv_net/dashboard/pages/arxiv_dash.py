@@ -1,111 +1,15 @@
-import datetime
-import json
-import pickle
-from collections import defaultdict
-from typing import Dict, Set, List, Optional
-from tqdm import tqdm
-from pathlib import Path
-import pandas as pd
-import dash_cytoscape as cyto
-import dash
 import dash_core_components as dcc
+import dash_cytoscape as cyto
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
-from dash.exceptions import PreventUpdate
-import plotly.graph_objs as go
+from dash.dependencies import Input, Output
 
-
+from arxiv_net.dashboard import DASH_DIR, LOOKBACKS, TOPICS
 from arxiv_net.dashboard.assets.style import *
+from arxiv_net.dashboard.dashboard import Hider
+from arxiv_net.dashboard.pages.feeds.explore import DASH
 from arxiv_net.dashboard.server import app
-from arxiv_net.textsearch.whoosh import get_index, search_index
-from arxiv_net.users import USER_DIR
-from arxiv_net.utilities import Config
-from arxiv_net.dashboard import DASH_DIR
-from typing import NamedTuple
-
-################################################################################
-# DATA LOADING
-################################################################################
-DB = pickle.load(open(Config.ss_db_path, 'rb'))
-DB_ARXIV = pickle.load(open(Config.db_path, 'rb'))
-SIMILARITIES = pickle.load(open(Config.sim_path, 'rb'))
-
-embed_db_path = Path(Config.bert_abstract_embed_db_path)
-embeds_tsne_csv_path = embed_db_path.with_name(embed_db_path.name.replace(".p", "_tsne.csv"))
-TSNE_CSV = pd.read_csv(embeds_tsne_csv_path, dtype=str)
-TSNE_CSV["Topic"] = [DB_ARXIV[i]["arxiv_primary_category"]["term"] if i in DB_ARXIV else None for i in TSNE_CSV['Unnamed: 0']]
-TSNE_CSV["CitationVelocity"] = [DB[i].citationVelocity if i in DB else None for i in TSNE_CSV['Unnamed: 0']]
-TSNE_CSV["Year"] = [int(DB_ARXIV[i]["published"][:4]) if i in DB_ARXIV else None for i in TSNE_CSV['Unnamed: 0']]
-TSNE_CSV["Title"] = [DB[i].title if i in DB else None for i in TSNE_CSV['Unnamed: 0']]
 
 # TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
-
-# Indexing db, should be done asynchronously while fetching from SS
-PaperID = Title = AuthorName = Topic = str
-AUTHORS: Dict[AuthorName, Set[PaperID]] = defaultdict(set)
-TOPICS: Dict[Topic, Set[PaperID]] = defaultdict(set)
-TITLES: Dict[Title, Set[PaperID]] = defaultdict(set)
-LOOKBACKS = ['This Week', 'This Month', 'This Year',
-             'Filter By Year (Callback Popup)']
-index = get_index()
-
-for paper_id, paper in tqdm(DB.items()):
-    if paper is None:
-        # TODO (Andrei): why are there None's?
-        continue
-    for author in paper.authors:
-        AUTHORS[author.name].add(paper_id)
-    for topic in paper.topics:
-        TOPICS[topic.topic].add(paper_id)
-    TITLES[paper.title].add(paper_id)
-
-
-class PaperFeed:
-    """" A tracker for displayed / selected papers
-    """
-    
-    def __init__(self,
-                 collection: List[PaperID],
-                 selected: Optional[int] = None,
-                 display_size: int = 10,
-                 ):
-        self.collection = collection
-        self.display_size = display_size
-        self.selected = selected
-        self.current_page = 0
-        self.total_pages = len(self.collection) // display_size + 1
-    
-    @property
-    def displayed(self):
-        return self.collection[self.display_size * self.current_page:
-                               self.display_size * self.current_page + self.display_size]
-    
-    def __call__(self, *args, **kwargs):
-        return self.displayed
-    
-    def reset(self):
-        self.collection = list()
-        self.selected = None
-        self.current_page = 0
-    
-    def pg_up(self):
-        self.current_page += 1
-    
-    def pg_down(self):
-        self.current_page -= 1
-
-
-class Dashboard:
-    """ Encapsulates all methods related to the dash.
-    """
-
-    def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
-        self.current_user = current_user
-        self.feed = feed or PaperFeed(collection=[])
-        self.focus_feed = PaperFeed(collection=[])
-
-
-DASH = Dashboard()
 
 
 ################################################################################
@@ -184,18 +88,20 @@ search_button = html.Div(
 ################################################################################
 discover_intro_md = (DASH_DIR / "assets/discover_intro.md").read_text()
 
+
 ################################################################################
 # COMPONENT FACTORIES
 ################################################################################
 def Card(children, **kwargs):
     return html.Section(children, className="card-style")
 
+
 def NamedRangeSlider(name, short, min, max, step, val, marks=None):
     if marks:
         step = None
     else:
         marks = {i: i for i in range(min, max + 1, step)}
-
+    
     return html.Div(
         style={"margin": "25px 5px 30px 0px"},
         children=[
@@ -227,8 +133,8 @@ discover_feed_layout = html.Div(
     style={
         "max-width": "100%",
         "font-size": "1.5rem",
-        "padding": "0px 0px",
-        # 'display': 'none'
+        "padding"  : "0px 0px",
+        'display'  : 'none'
     },
     children=[
         # Demo Description
@@ -296,7 +202,8 @@ discover_feed_layout = html.Div(
                 html.Div(
                     className="six columns",
                     children=[
-                        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                        dcc.Graph(id="graph-3d-plot-tsne",
+                                  style={"height": "98vh"})
                     ],
                 ),
             ],
@@ -308,14 +215,14 @@ explore_feed_layout = html.Div(
     id='explore-feed',
     children=[
         html.Div(
-            id='search-fee',
+            id='search-feed',
             children=[
                 html.Div(
                     id='filters',
                     children=[
-                        author_filter,
                         topics_filter,
-                        title_filter,
+                        author_filter,
+                        # title_filter,
                         date_filter,
                         search_button
                     ]
@@ -324,19 +231,20 @@ explore_feed_layout = html.Div(
                 html.Div(
                     id='feed-div',
                     children=[
-                        dcc.Loading(
+                        html.Div(
+                            # dcc.Loading(
+                            # type='cube',
                             id='display-feed',
-                            type='cube',
                             children=[
                                 html.Ul(
                                     children=[
-                                        html.Li(id=f'paper-placeholder-{i}')
-                                        for i in
-                                        range(DASH.feed.display_size - 1)
+                                        html.Li(
+                                            id=f'paper-placeholder-{i}')
+                                        for i in range(DASH.feed.display_size)
                                     ],
                                     style={'list-style-type': 'none'}
                                 )
-                        
+                            
                             ]
                         )
                     ]
@@ -344,24 +252,24 @@ explore_feed_layout = html.Div(
             ],
             className='four columns'
         ),
-    
         html.Div(
             id='focus-feed',
             children=[
-                dcc.Checklist(
-                    id='checklist',
+                html.Button('show_search_feed', id='hide-button'),
+                dcc.RadioItems(
+                    id='radio',
                     options=[
                         {'label': 'Similar', 'value': 'similar'},
                         {'label': 'References', 'value': 'references'},
                         {'label': 'Citations', 'value': 'citations'}
                     ],
-                    value=['Citations'],
+                    value='Citations',
                     labelStyle={'display': 'inline-block'},
-
+                
                 ),
                 html.Hr(),
                 html.Div(
-                    id='feed2-div',
+                    id='focus-feed-div',
                     children=[
                     ],
                     style={
@@ -373,6 +281,7 @@ explore_feed_layout = html.Div(
             className='four columns'
         ),
         html.Div(
+            id='cytoscape-nodes',
             children=[
                 cyto.Cytoscape(
                     id='cytoscape-two-nodes',
@@ -380,50 +289,51 @@ explore_feed_layout = html.Div(
                     userZoomingEnabled=False,
                     autolock=True,
                     layout={'name': 'grid', 'padding': 40, 'fit': True},
-                    style={'width': '500px', 'height': '500px', 'border': '1px solid black'},
+                    style={'width' : '500px', 'height': '500px',
+                           'border': '1px solid black'},
                     stylesheet=[
                         {
                             'selector': 'node',
-                            'style': {
-                                'shape': 'rectangle',
-                                'text-valign': 'center',
-                                'padding': 3,
-                                'content': 'data(label)',
-                                'text-wrap': 'wrap',
+                            'style'   : {
+                                'shape'         : 'rectangle',
+                                'text-valign'   : 'center',
+                                'padding'       : 3,
+                                'content'       : 'data(label)',
+                                'text-wrap'     : 'wrap',
                                 'text-max-width': '12px',
-                                'font-size': 5
+                                'font-size'     : 5
                             }
                         },
                         {
                             'selector': 'edge',
-                            'style': {
+                            'style'   : {
                                 # The default curve style does not work with certain arrows
-                                'curve-style': 'bezier',
+                                'curve-style'       : 'bezier',
                                 'source-arrow-shape': 'triangle',
-                                'color': 'black',
-                                'font-size': 8
+                                'color'             : 'black',
+                                'font-size'         : 8
                             }
                         },
                         {
                             'selector': '#one',
-                            'style': {
-                                'shape': 'rectangle',
+                            'style'   : {
+                                'shape'      : 'rectangle',
                                 'text-valign': 'center',
-                                'width': 'label',
-                                'content': 'hi\nbye',
-                                'height': 'label',
-                                'padding': 5
+                                'width'      : 'label',
+                                'content'    : 'hi\nbye',
+                                'height'     : 'label',
+                                'padding'    : 5
                             }
                         },
                         {
                             'selector': '.parent_node',
-                            'style': {
-                                'shape': 'rectangle',
-                                'text-halign': 'left',
+                            'style'   : {
+                                'shape'        : 'rectangle',
+                                'text-halign'  : 'left',
                                 'text-margin-x': -1,
-                                'font-size': 14,
-                                'min-width': '400px',
-                                'min-height': '250px',
+                                'font-size'    : 14,
+                                'min-width'    : '400px',
+                                'min-height'   : '250px',
                             }
                         }
                     ],
@@ -435,18 +345,40 @@ explore_feed_layout = html.Div(
     ],
     className="row",
     style={
-        'display' : 'none'
+        'display': 'none'
     },
 )
 
 recommend_feed_layout = html.Div(
     id='recommend-feed',
     className="row",
+    children=[
+        html.Div(
+            id='library',
+            children=[
+                html.Label('Library'),
+                html.Div(
+                    id='user-library'
+                )
+            ],
+            className='six columns'
+        ),
+        html.Div(
+            id='recommend-feed-div',
+            children=[
+                html.Label('Recommendations'),
+                dcc.Loading(
+                    id='user-recommendations',
+                    type='cube'
+                )
+            ],
+            className='six columns'
+        ),
+    ],
     style={
         'display': 'none'
     },
 )
-
 
 layout = html.Div([
     html.Div(
@@ -469,7 +401,7 @@ layout = html.Div([
                                     dcc.Tabs(
                                         id='feed',
                                         style=container_style,
-                                        value='Recommend',
+                                        value='Discover',
                                         children=[
                                             dcc.Tab(
                                                 label='Explore',
@@ -508,38 +440,9 @@ layout = html.Div([
     )
 ])
 
-# -----------------------------------------------------------------------------
-# Helper methods
-
-def _soft_match_title(user_title: str) -> Set[PaperID]:
-    search_results = set()
-    if user_title == 'Any':
-        for papers in TITLES.values():
-            search_results |= papers
-        return search_results
-    search_results = set(search_index(user_title, "abstract", index))
-    return search_results
-
-
-def _soft_match_author(user_author: str) -> Set[PaperID]:
-    # TODO: Adjust for casing
-    matched = set()
-    for author, papers in AUTHORS.items():
-        if user_author == 'Any' or user_author in author:
-            matched |= papers
-    return matched
-
-
-def _soft_match_topic(user_topic: str) -> Set[PaperID]:
-    # TODO: Adjust for casing
-    matched = set()
-    for topic, papers in TOPICS.items():
-        if user_topic == 'Any' or user_topic in topic:
-            matched |= papers
-    return matched
 
 # -----------------------------------------------------------------------------
-
+# Callbacks
 
 @app.callback(
     Output('filters', 'children'),
@@ -548,15 +451,10 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
 def display_filters(feed: str):
     """ Choose available filters based on the type of feed """
     if feed == 'Explore':
-        return [topics_filter, author_filter, title_filter, date_filter, search_button]
-    elif feed == 'Recommend':
-        return [date_filter, search_button]
+        return [title_filter, author_filter, date_filter, search_button]
+    # elif feed == 'Recommend':
+    #     return [date_filter, search_button]
     return []
-
-
-class Hider(NamedTuple):
-    hide = {'display': 'none'}
-    show = {'display': 'block'}
 
 
 @app.callback(
@@ -575,281 +473,3 @@ def choose_feed(feed: str):
         return [Hider.hide, Hider.show, Hider.hide]
     elif feed == 'Recommend':
         return [Hider.hide, Hider.hide, Hider.show]
-
-
-# -----------------------------------------------------------------------------
-# Exploration feed callbacks
-
-@app.callback(
-    [Output(f'paper-placeholder-{i}', 'className') for i in
-     range(DASH.feed.display_size - 1)],
-    [Input('feed2-div', 'children')],
-)
-def highlight_selected_paper(*args):
-    classnames = ['paper-placeholder' for paper in
-                  range(DASH.feed.display_size - 1)]
-    if DASH.feed.selected is not None:
-        classnames[DASH.feed.selected] = 'selected-paper-div'
-    return classnames
-
-
-@app.callback(
-    [
-        Output(f'paper-placeholder-{i}', 'children')
-        for i in range(DASH.feed.display_size - 1)
-    ],
-    [
-        Input('button', 'n_clicks'),
-    ],
-    [
-        State('filters', 'children'),
-        State('button', 'children'),
-        State('feed', 'value'),
-        State('user-name', 'children')
-    ],
-)
-def display_exploration_feed(
-    n_clicks,
-    filters,
-    button_state,
-    feed,
-    username
-):
-    """ Populates pre-allocated list in the explore-div with the papers
-    that match search results. Updates the global state of `PaperFeed` to
-    allow for other callbacks to utilize the search results.
-    """
-    if not n_clicks:
-        raise PreventUpdate
-    if button_state == 'Stop':
-        raise PreventUpdate
-    
-    if feed != 'Explore':
-        return []
-    
-    # Extract values for selected filters
-    ff = dict()
-    for f in filters:
-        filter_name = f['props']['id'].split('-')[0]
-        if filter_name == 'button':
-            continue
-        filter_value = f['props']['children'][1]['props']['value']
-        ff[filter_name] = filter_value
-    
-    # Extract username in case logged in
-    username = 'default'
-    if isinstance(username, dict):
-        # username = username['props']
-        pass  # Use `default` user for testing
-    
-    matched_titles = _soft_match_title(ff['title'])
-    matched_authors = _soft_match_author(ff['author'])
-    matched_topics = _soft_match_topic(ff['topic'])
-
-    # print(f'Matched authors: {matched_authors}')
-    # print(f'Matched titles: {matched_titles}')
-    # print(f'Matched topics: {matched_topics}')
-
-    possible_papers = list(matched_authors & matched_topics & matched_titles)
-    DASH.feed = PaperFeed(collection=possible_papers)
-
-    li = list()
-    for i, paper_id in enumerate(DASH.feed.displayed):
-        paper = DB[paper_id]
-        li.append(
-            [
-                dcc.Markdown(
-                    f"""
-                    ##### [{paper.title}]({paper.url})
-                    _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
-                    """
-                ),
-                html.Hr(),
-            ]
-        )
-    return li
-
-
-@app.callback(
-    Output('feed2-div', 'children'),
-    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-     range(DASH.feed.display_size - 1)],
-    [State('checklist', 'value')]
-)
-def focus_feed(*args):
-    """  """
-    triggers = dash.callback_context.triggered
-    print(triggers)
-    checklist = args[-1]
-    idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
-    DASH.feed.selected = idx
-    DASH.focus_feed.collection = list()
-    paper_id = DASH.feed.displayed[idx]
-    paper = DB[paper_id]
-    
-    print(f'PAPER SELECTED: {paper.title}')
-
-    to_display = list()
-    for category in checklist:
-        if category == 'similar':
-            to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
-        elif category == 'citations':
-            to_display += paper.citations
-        elif category == 'references':
-            to_display += paper.references
-    
-    # TODO: sort things here + color code
-    li = list()
-    for p in tqdm(to_display):
-        if p.arxivId is None or p.arxivId not in DB:
-            continue
-        DASH.focus_feed.collection.append(p.arxivId)
-        paper = DB[p.arxivId]
-        li.append(html.Li(
-            children=[
-                dcc.Markdown(
-                    f"""
-                    ##### [{paper.title}]({paper.url})
-                    _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
-                    """
-                ),
-                html.Button('More like this', id=f'more-{paper.doi}'),
-                html.Button('Less like this', id=f'less-{paper.doi}'),
-                html.Hr(),
-            ],
-            style={'list-style-type': 'none'}
-        ))
-    return html.Ul(children=li)
-
-
-@app.callback(
-    Output('cytoscape-two-nodes', 'elements'),
-    [Input('feed2-div', 'children')],
-)
-def graph(*args):
-    print('EDITING GRAPH')
-    parent_nodes, nodes, edges = list(), list(), list()
-    
-    years = []
-    seconds_in_year = 31622400
-    x = 0
-    
-    # Get list of years
-    print(DASH.focus_feed.collection)
-    for paper_id in DASH.focus_feed.collection:
-        date = DB_ARXIV[paper_id]['published']
-        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-    
-        if date.year not in years:
-            years.append(date.year)
-            parent_nodes.append({
-                'data'   : {'id': date.year, 'label': date.year},
-                'classes': 'parent_node'
-            })
-    
-    years.sort(reverse=True)
-
-    # Generate Nodes and Edges
-    total_height = 500
-    number_of_sections = len(years)
-    section_height = total_height / number_of_sections
-    for paper_id in tqdm(DASH.focus_feed.collection):
-        paper = DB[paper_id]
-        date = DB_ARXIV[paper_id]['published']
-        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-        date_start_of_year = datetime.datetime(date.year, 1, 1)
-        seconds_difference = (date - date_start_of_year).total_seconds()
-        normalized_date = (seconds_difference / seconds_in_year)
-        year_index = years.index(date.year)
-        y = round(
-            normalized_date * section_height) + section_height * year_index
-        # print(y)
-        # print(date)
-        nodes.append({
-            'data'    : {'id'    : paper_id,
-                         'label' : str(date.year) + paper.title[:30],
-                         'parent': date.year},
-            'position': {'x': x, 'y': y}
-        })
-        x += 50
-        for reference in paper.references:
-            if reference.paperId in DASH.focus_feed.collection:
-                edges.append({'data': {'id'    : reference.paperId + "." + paper_id,
-                                       'source': reference.paperId,
-                                       'target': paper_id}})
-    print(parent_nodes + nodes + edges)
-    return parent_nodes + nodes + edges
-
-
-# -----------------------------------------------------------------------------
-# Discovery feed callbacks
-
-@app.callback(
-    Output("graph-3d-plot-tsne", "figure"),
-    [
-        Input("discover-categories", "value"),
-        Input("slider-discover-year", "value"),
-    ],
-)
-def display_3d_scatter_plot(
-        category,
-        year_range,
-):
-    start, end = year_range
-    tsne_df = TSNE_CSV.loc[(TSNE_CSV["Topic"] == category) &
-                           (TSNE_CSV["Year"] <= end) &
-                           (TSNE_CSV["Year"] >= start)].sort_values("CitationVelocity")
-
-    axes = dict(title="", showgrid=True, zeroline=False,
-                showticklabels=False)
-    layout = go.Layout(
-        margin=dict(l=0, r=0, b=0, t=0),
-        scene=dict(xaxis=axes, yaxis=axes, zaxis=axes),
-    )
-
-    scatter = go.Scatter3d(
-        name=str(tsne_df.index),
-        x=tsne_df["x"],
-        y=tsne_df["y"],
-        z=tsne_df["z"],
-        text=tsne_df["Title"],
-        textposition="middle center",
-        showlegend=False,
-        mode="markers",
-        marker=dict(size=3, color="#3266c1", symbol="circle"),
-    )
-
-    figure = go.Figure(data=[scatter], layout=layout)
-    return figure
-
-# -----------------------------------------------------------------------------
-# Recommendation feed callbacks
-
-def recommendation_feed(username: str, date: str) -> html.Ul:
-    """ Generates a list of Recommend paper based on user's preference.
-
-    """
-    # TODO: dump preferences in SQL instead of flat files
-    
-    with open(f'{USER_DIR}/{username}.json') as f:
-        pref = json.load(f)
-    
-    li = list()
-    for paper in tqdm(pref):
-        paper = DB[paper]
-        li.append(html.Li(
-            children=[
-                html.H5([html.A(paper.title, href=paper.url),
-                         html.Button('Mark As Read', id=f'read-{paper.doi}'),
-                         html.Button('Save To Library',
-                                     id=f'save-{paper.doi}')]),
-                html.H6([', '.join([author.name for author in paper.authors]),
-                         ' -- ', paper.year, ' -- ', paper.venue]),
-                html.Button('More like this', id=f'more-{paper.doi}'),
-                html.Button('Less like this', id=f'less-{paper.doi}'),
-                html.Hr(),
-            ],
-            style={'list-style-type': 'none'}
-        ))
-    return html.Ul(children=li)
-
