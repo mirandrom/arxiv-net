@@ -539,6 +539,8 @@ def display_feed(
     ff = dict()
     for f in filters:
         filter_name = f['props']['id'].split('-')[0]
+        if filter_name == 'button':
+            continue
         filter_value = f['props']['children'][1]['props']['value']
         ff[filter_name] = filter_value
     
@@ -563,9 +565,10 @@ def display_feed(
      range(DASH.feed.display_size - 1)],
     [State('checklist', 'value')]
 )
-def feed2(*args, checklist):
+def feed2(*args):
     """ Dynamically create callbacks for each paper? """
     print(dash.callback_context.triggered)
+    checklist = args[-1]
     idx = int(
         dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
             -1])
