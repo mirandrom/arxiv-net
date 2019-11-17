@@ -104,7 +104,7 @@ author_filter = html.Div(
             placeholder='Richard Sutton',
             type='text',
             value='Any',
-            style={'width'    : '100%',
+            style={'width': '100%',
                    'textAlign': 'center'}
         )
     ],
