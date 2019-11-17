@@ -13,7 +13,13 @@ input {
 }
 
 #button-div {
-	padding: 23px 0px 0px 0px ! important;
+	padding: 0px ! important;
+	width: 100%;
+}
+
+#button {
+	float: right;
+	margin-right: 8px;
 }
 
 .links {
@@ -24,7 +30,7 @@ input {
 	text-align: right;
 }
 
-#title-div {
+.row #title-div.two.columns.title {
 	white-space: nowrap;
 }
 
@@ -48,8 +54,72 @@ h2 {
 	
 }
 
+#h1 {
+	padding-left:8px;
+}
+
+#uname-box {
+	margin-left: 8px;
+}
+
+.container {
+	width: 100% ! important;
+	padding: 0px ! important;
+	margin: 0px ! important;
+	max-width: none ! important;
+}
+
+#checklist {
+	text-align: right;
+}
+
+	#checklist input[type="checkbox"] {
+		float: right;
+		margin-top: 6px;
+	}
+
 #feed {
 
+}
+
+#feed-1, #feed-2 {
+	width: 33%;
+	border-right: 1px solid black;
+	border-bottom: none ! important;
+	height: 100%;
+	display: inline-block;
+}
+
+#feed-2 {
+	background-color: #f4f4f4;
+}
+
+#filters {
+
+}
+
+#filters div {
+	
+}
+
+#filters div label {
+	text-align: left ! important;
+	float: left;
+}
+
+#filters #title-div, #author-div, #date-div, #topic-div {
+	display: inline-block;
+	width: 100%;
+}
+
+#filters #topic-div, #date-div {
+	padding-top: 8px ! important;
+}
+
+.feed-input {
+	float: right;
+	margin-right: 8px;
+	width:70%;
 }
 
 #user-name {
@@ -63,14 +133,25 @@ h2 {
 	padding-right: 8px;
 }
 
+#login-button {
+	margin-left: 2px;
+	margin-bottom: 1px;
+	height: 36px;
+}
+
 .logo {
 	height: 0px;
+}
+
+#header {
+	width: 100%;
 }
 
 .header {
     background-color: darkred;
     align-items: center;
     display: block;
+	width: 100%;
 }
 
 .custom_button {
@@ -83,6 +164,19 @@ h2 {
 
 .callout {
     float: right;
+}
+
+.paper-placeholder {
+	margin: 0px ! important;
+	padding: 0px ! important;
+}
+
+.paper-placeholder:hover {
+	background-color: lightblue;
+}
+
+.selected-paper-div {
+	background-color: pink;
 }
 
 .page {
