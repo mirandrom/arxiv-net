@@ -388,7 +388,6 @@ explore_feed_layout = html.Div(
                             'style': {
                                 'background-color': 'white',
                                 'border-width': '2px',
-                                'border-color': '#0FA0CE',
                                 'shape': 'circle',
                             }
                         },
@@ -397,7 +396,7 @@ explore_feed_layout = html.Div(
                             'style': {
                                 'background-color': 'rgb(255, 220, 246)',
                                 'border-width': '2px',
-                                'border-color': 'pink',
+                                'border-color': 'darkred',
                                 'width': '50px',
                                 'height': '50px',
                             }

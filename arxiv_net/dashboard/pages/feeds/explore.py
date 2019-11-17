@@ -275,7 +275,8 @@ def graph(a, selected_paper):
                          'label': '',
                          'parent': date.year},
                 'position': {'x': centered_x, 'y': y},
-                'classes': 'main_node'
+                'classes': 'main_node',
+                'style': {'border-color': 'rgb(15, 160, 206)'}
             })
         else:
             nodes.append({
