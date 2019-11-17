@@ -393,13 +393,14 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
 
 @app.callback(
     Output('feed2-div', 'children'),
-    [Input('checklist', 'value')] +
     [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-     range(DASH.feed.display_size - 1)]
+     range(DASH.feed.display_size - 1)],
+    [State('checklist', 'value')]
 )
-def feed2(checklist, *args):
+def feed2(*args, checklist):
     """ Dynamically create callbacks for each paper? """
     print(dash.callback_context.triggered)
+    # trigger = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
     idx = int(
         dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
             -1])
