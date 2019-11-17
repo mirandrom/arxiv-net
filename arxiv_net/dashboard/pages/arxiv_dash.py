@@ -4,12 +4,14 @@ from collections import defaultdict
 from typing import Dict, Set, List, Optional
 from tqdm import tqdm
 from pathlib import Path
+import pandas as pd
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
+import plotly.graph_objs as go
 
 
 from arxiv_net.dashboard.assets.style import *
@@ -23,6 +25,16 @@ from arxiv_net.utilities import Config, ROOT_DIR
 ################################################################################
 DASHBOARD_DIR = ROOT_DIR / "dashboard"
 DB = pickle.load(open(Config.ss_db_path, 'rb'))
+DB_ARXIV = pickle.load(open(Config.db_path, 'rb'))
+
+embed_db_path = Path(Config.bert_abstract_embed_db_path)
+embeds_tsne_csv_path = embed_db_path.with_name(embed_db_path.name.replace(".p", "_tsne.csv"))
+TSNE_CSV = pd.read_csv(embeds_tsne_csv_path, dtype=str)
+TSNE_CSV["Topic"] = [DB_ARXIV[i]["arxiv_primary_category"]["term"] if i in DB_ARXIV else None for i in TSNE_CSV['Unnamed: 0']]
+TSNE_CSV["CitationVelocity"] = [DB[i].citationVelocity if i in DB else None for i in TSNE_CSV['Unnamed: 0']]
+TSNE_CSV["Year"] = [int(DB_ARXIV[i]["published"][:4]) if i in DB_ARXIV else None for i in TSNE_CSV['Unnamed: 0']]
+TSNE_CSV["Title"] = [DB[i].title if i in DB else None for i in TSNE_CSV['Unnamed: 0']]
+
 # TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
 
 # Indexing db, should be done asynchronously while fetching from SS
@@ -83,13 +95,14 @@ class PaperFeed:
 class Dashboard:
     """ Encapsulates all methods related to the dash.
     """
-    
+
     def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
         self.current_user = current_user
         self.feed = feed or PaperFeed(collection=[])
 
 
 DASH = Dashboard()
+
 
 ################################################################################
 # HTML DIVS
@@ -117,7 +130,7 @@ topics_filter = html.Div(
     children=[
         html.Label('Topic:'),
         dcc.Dropdown(
-            id='topic', 
+            id='topic',
             className='feed-input',
             options=[{'label': c, 'value': c} for c
                      in TOPICS],
@@ -131,7 +144,7 @@ title_filter = html.Div(
     children=[
         html.Label('Title:'),
         dcc.Input(
-            id='title', 
+            id='title',
             className='feed-input',
             placeholder='Attention Is All You Need',
             type='text',
@@ -263,7 +276,7 @@ layout = html.Div([
                 ],
                 className='six columns'
             ),
-            
+
             html.Div(
                 id='feed-2',
                 children=[
@@ -339,34 +352,6 @@ def create_discover_layout(app):
         className="row",
         style={"max-width": "100%", "font-size": "1.5rem", "padding": "0px 0px"},
         children=[
-            # Header
-            html.Div(
-                className="row header",
-                id="discover-header",
-                style={"background-color": "#f9f9f9"},
-                children=[
-                    html.Div(
-                        [
-                            html.Img(
-                                src=app.get_asset_url("arxiv.png"),
-                                className="logo",
-                                id="arxiv-image",
-                            )
-                        ],
-                        className="three columns header_img",
-                    ),
-                    html.Div(
-                        [
-                            html.H3(
-                                "Discover Papers",
-                                className="header_title",
-                                id="discover-title",
-                            )
-                        ],
-                        className="nine columns header_title_container",
-                    ),
-                ],
-            ),
             # Demo Description
             html.Div(
                 className="row background",
@@ -416,7 +401,7 @@ def create_discover_layout(app):
                                     ),
                                     NamedRangeSlider(
                                         name="Year",
-                                        short="year",
+                                        short="discover-year",
                                         min=1995,
                                         max=2020,
                                         step=None,
@@ -472,6 +457,37 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     return matched
 
 
+def exploration_feed(username: str,
+                     author: str,
+                     title: str,
+                     topic: str,
+                     date: str
+                     ):
+    matched_titles = _soft_match_title(title)
+    matched_authors = _soft_match_author(author)
+    matched_topics = _soft_match_topic(topic)
+
+    print(author, title, topic)
+    # print(f'Matched authors: {matched_authors}')
+    # print(f'Matched titles: {matched_titles}')
+    # print(f'Matched topics: {matched_topics}')
+
+    possible_papers = list(matched_authors & matched_topics & matched_titles)
+    DASH.feed = PaperFeed(collection=possible_papers)
+
+    li = list()
+    for i, paper_id in enumerate(DASH.feed.displayed):
+        paper = DB[paper_id]
+        li.append(
+            [
+                html.H5([html.A(paper.title, href=paper.url)]),
+                html.H6([', '.join([author.name for author in paper.authors]),
+                         ' -- ', paper.year, ' -- ', paper.venue]),
+                html.Hr(),
+            ]
+        )
+    return li
+
 ################################################################################
 # CALLBACKS
 ################################################################################
@@ -485,9 +501,10 @@ def display_filters(feed: str):
         return [topics_filter, author_filter, title_filter, date_filter, search_button]
     elif feed == 'Recommended':
         return [date_filter, search_button]
+    elif feed == 'Discover':
+        return create_discover_layout(app)
     else:
         return []
-
 
 @app.callback(
     [
@@ -564,7 +581,7 @@ def feed2(checklist, *args):
             to_display += paper.citations
         elif category == 'references':
             to_display += paper.references
-    
+
     for p in tqdm(to_display):
         if p.arxivId is None or p.arxivId not in DB:
             continue
@@ -584,36 +601,43 @@ def feed2(checklist, *args):
     return html.Ul(children=li)
 
 
-def exploration_feed(username: str,
-                     author: str,
-                     title: str,
-                     topic: str,
-                     date: str
-                     ):
-    matched_titles = _soft_match_title(title)
-    matched_authors = _soft_match_author(author)
-    matched_topics = _soft_match_topic(topic)
-    
-    print(author, title, topic)
-    # print(f'Matched authors: {matched_authors}')
-    # print(f'Matched titles: {matched_titles}')
-    # print(f'Matched topics: {matched_topics}')
-    
-    possible_papers = list(matched_authors & matched_topics & matched_titles)
-    DASH.feed = PaperFeed(collection=possible_papers)
-    
-    li = list()
-    for i, paper_id in enumerate(DASH.feed.displayed):
-        paper = DB[paper_id]
-        li.append(
-            [
-                html.H5([html.A(paper.title, href=paper.url)]),
-                html.H6([', '.join([author.name for author in paper.authors]),
-                         ' -- ', paper.year, ' -- ', paper.venue]),
-                html.Hr(),
-            ]
-        )
-    return li
+@app.callback(
+    Output("graph-3d-plot-tsne", "figure"),
+    [
+        Input("discover-categories", "value"),
+        Input("slider-discover-year", "value"),
+    ],
+)
+def display_3d_scatter_plot(
+        category,
+        year_range,
+):
+    start, end = year_range
+    tsne_df = TSNE_CSV.loc[(TSNE_CSV["Topic"] == category) &
+                           (TSNE_CSV["Year"] <= end) &
+                           (TSNE_CSV["Year"] >= start)].sort_values("CitationVelocity")
+
+    axes = dict(title="", showgrid=True, zeroline=False,
+                showticklabels=False)
+    layout = go.Layout(
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene=dict(xaxis=axes, yaxis=axes, zaxis=axes),
+    )
+
+    scatter = go.Scatter3d(
+        name=str(tsne_df.index),
+        x=tsne_df["x"],
+        y=tsne_df["y"],
+        z=tsne_df["z"],
+        text=tsne_df["Title"],
+        textposition="middle center",
+        showlegend=False,
+        mode="markers",
+        marker=dict(size=3, color="#3266c1", symbol="circle"),
+    )
+
+    figure = go.Figure(data=[scatter], layout=layout)
+    return figure
 
 
 def recommendation_feed(username: str, date: str) -> html.Ul:
