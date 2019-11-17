@@ -1,6 +1,7 @@
-from whoosh.index import create_in, open_dir
+from whoosh.index import create_in, open_dir, EmptyIndexError
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
+import whoosh
 
 from arxiv_net import ROOT_DIR
 from arxiv_net.utilities import Config
@@ -33,7 +34,11 @@ def build_index():
 
 
 def get_index():
-    return open_dir(index_dir)
+    try:
+        return open_dir(index_dir)
+    except EmptyIndexError:
+        build_index()
+        return open_dir(index_dir)
 
 
 def search_index(query: str, field: str, index):
