@@ -96,10 +96,10 @@ DASH = Dashboard()
 date_filter = html.Div(
     id='date-div',
     children=[
-        html.Label('Published:',
-                   style={'textAlign': 'center'}),
+        html.Label('Published:'),
         dcc.Dropdown(
             id='date',
+            className='feed-input',
             options=[{'label': c, 'value': c} for c
                      in LOOKBACKS],
             value=LOOKBACKS[0]
@@ -112,63 +112,51 @@ date_filter = html.Div(
 topics_filter = html.Div(
     id='topic-div',
     children=[
-        html.Label('Topic:',
-                   style={'textAlign': 'center'}),
+        html.Label('Topic:'),
         dcc.Dropdown(
-            id='topic',
+            id='topic', 
+            className='feed-input',
             options=[{'label': c, 'value': c} for c
                      in TOPICS],
             value='Any'
         )
-    ],
-    # style={'display': 'block'},
-    # className='two columns',
+    ]
 )
 
 title_filter = html.Div(
     id='title-div',
     children=[
-        html.Label('Title:',
-                   style={'textAlign': 'center'}),
+        html.Label('Title:'),
         dcc.Input(
-            id='title',
+            id='title', 
+            className='feed-input',
             placeholder='Attention Is All You Need',
             type='text',
-            value='Any',
-            style={'width'    : '100%',
-                   'textAlign': 'center'}
+            value='Any'
         )
-    ],
-    # style={'display': 'block'},
-    # className='two columns',
+    ]
 )
 
 author_filter = html.Div(
     id='author-div',
     children=[
-        html.Label('Author:',
-                   style={'textAlign': 'center'}),
+        html.Label('Author:'),
         dcc.Input(
             id='author',
+            className='feed-input',
             placeholder='Richard Sutton',
             type='text',
-            value='Any',
-            style={'width'    : '100%',
-                   'textAlign': 'center'}
+            value='Any'
         )
-    ],
-    # style={'display': 'block'},
-    # className='two columns',
+    ]
 )
 
 search_button = html.Div(
-    html.Div(
-        id='button-div',
-        children=[
-            html.Button('Search', id='button'),
-        ],
-        className='one column custom_button',
-    )
+    id='button-div',
+    children=[
+        html.Button('Search', id='button'),
+    ],
+    className='one column custom_button',
 )
 
 layout = html.Div([
