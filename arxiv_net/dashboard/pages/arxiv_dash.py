@@ -2,23 +2,26 @@ import json
 import pickle
 from collections import defaultdict
 from typing import Dict, Set, List, Optional
+from tqdm import tqdm
+from pathlib import Path
 
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
-from tqdm import tqdm
+
 
 from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.server import app
 from arxiv_net.textsearch.whoosh import get_index, search_index
 from arxiv_net.users import USER_DIR
-from arxiv_net.utilities import Config
+from arxiv_net.utilities import Config, ROOT_DIR
 
 ################################################################################
 # DATA LOADING
 ################################################################################
+DASHBOARD_DIR = ROOT_DIR / "dashboard"
 DB = pickle.load(open(Config.ss_db_path, 'rb'))
 # TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
 
@@ -159,6 +162,17 @@ search_button = html.Div(
     className='one column custom_button',
 )
 
+tsne_plot = html.Div(
+    className="six columns",
+    children=[
+        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+    ],
+),
+
+################################################################################
+# LAYOUT
+################################################################################
+
 layout = html.Div([
     html.Div(
         children=[
@@ -279,13 +293,188 @@ layout = html.Div([
         className='page',
     )
 ])
+################################################################################
+# STATIC MARKDOWN
+################################################################################
+discover_intro_md = (DASHBOARD_DIR / "assets/discover_intro.md").read_text()
+
+################################################################################
+# COMPONENT FACTORIES
+################################################################################
+def Card(children, **kwargs):
+    return html.Section(children, className="card-style")
+
+def NamedRangeSlider(name, short, min, max, step, val, marks=None):
+    if marks:
+        step = None
+    else:
+        marks = {i: i for i in range(min, max + 1, step)}
+
+    return html.Div(
+        style={"margin": "25px 5px 30px 0px"},
+        children=[
+            f"{name}:",
+            html.Div(
+                style={"margin-left": "5px"},
+                children=[
+                    dcc.RangeSlider(
+                        id=f"slider-{short}",
+                        min=min,
+                        max=max,
+                        marks=marks,
+                        step=step,
+                        value=val,
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+################################################################################
+# LAYOUT FACTORIES
+################################################################################
+def create_discover_layout(app):
+    return html.Div(
+        className="row",
+        style={"max-width": "100%", "font-size": "1.5rem", "padding": "0px 0px"},
+        children=[
+            # Header
+            html.Div(
+                className="row header",
+                id="discover-header",
+                style={"background-color": "#f9f9f9"},
+                children=[
+                    html.Div(
+                        [
+                            html.Img(
+                                src=app.get_asset_url("arxiv.png"),
+                                className="logo",
+                                id="arxiv-image",
+                            )
+                        ],
+                        className="three columns header_img",
+                    ),
+                    html.Div(
+                        [
+                            html.H3(
+                                "Discover Papers",
+                                className="header_title",
+                                id="discover-title",
+                            )
+                        ],
+                        className="nine columns header_title_container",
+                    ),
+                ],
+            ),
+            # Demo Description
+            html.Div(
+                className="row background",
+                id="discover-explanation",
+                style={"padding": "50px 45px"},
+                children=[
+                    html.Div(
+                        id="discover-description-text",
+                        children=dcc.Markdown(discover_intro_md)
+                    ),
+                    # TODO: what is this
+                    html.Div(
+                        html.Button(id="learn-more-button", children=["Learn More"])
+                    ),
+                ],
+            ),
+            # Body
+            html.Div(
+                className="row background",
+                style={"padding": "10px"},
+                children=[
+                    html.Div(
+                        className="three columns",
+                        children=[
+                            Card(
+                                [
+                                    dcc.Dropdown(
+                                        id="discover-categories",
+                                        searchable=False,
+                                        clearable=False,
+                                        options=[
+                                            {
+                                                "label": "Machine Learning",
+                                                "value": "cs.LG",
+                                            },
+                                            {
+                                                "label": "Computer Vision",
+                                                "value": "cs.CV",
+                                            },
+                                            {
+                                                "label": "Computational Ling.",
+                                                "value": "cs.CL",
+                                            },
+                                        ],
+                                        placeholder="Select a machine learning field",
+                                        value="cs.LG",
+                                    ),
+                                    NamedRangeSlider(
+                                        name="Year",
+                                        short="year",
+                                        min=1995,
+                                        max=2020,
+                                        step=None,
+                                        val=(2019, 2020),
+                                        marks={
+                                            i: str(i) for i in range(1995, 2020, 5)
+                                        },
+                                    ),
+                                ]
+                            )
+                        ],
+                    ),
+                    html.Div(
+                        className="six columns",
+                        children=[
+                            dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+################################################################################
+# HELPER METHODS
+################################################################################
+def _soft_match_title(user_title: str) -> Set[PaperID]:
+    search_results = set()
+    if user_title == 'Any':
+        for papers in TITLES.values():
+            search_results |= papers
+        return search_results
+    search_results = set(search_index(user_title, "abstract", index))
+    return search_results
+
+
+def _soft_match_author(user_author: str) -> Set[PaperID]:
+    # TODO: Adjust for casing
+    matched = set()
+    for author, papers in AUTHORS.items():
+        if user_author == 'Any' or user_author in author:
+            matched |= papers
+    return matched
+
+
+def _soft_match_topic(user_topic: str) -> Set[PaperID]:
+    # TODO: Adjust for casing
+    matched = set()
+    for topic, papers in TOPICS.items():
+        if user_topic == 'Any' or user_topic in topic:
+            matched |= papers
+    return matched
 
 
 ################################################################################
 # CALLBACKS
 ################################################################################
-
-
 @app.callback(
     Output('filters', 'children'),
     [Input('feed', 'value')]
@@ -348,35 +537,6 @@ def display_feed(
         return exploration_feed(username, **ff)
     else:
         raise ValueError(f'Unknown feed {feed}')
-
-
-# The following 3 callbacks should probably be handled with elastic search
-def _soft_match_title(user_title: str) -> Set[PaperID]:
-    search_results = set()
-    if user_title == 'Any':
-        for papers in TITLES.values():
-            search_results |= papers
-        return search_results
-    search_results = set(search_index(user_title, "abstract", index))
-    return search_results
-
-
-def _soft_match_author(user_author: str) -> Set[PaperID]:
-    # TODO: Adjust for casing
-    matched = set()
-    for author, papers in AUTHORS.items():
-        if user_author == 'Any' or user_author in author:
-            matched |= papers
-    return matched
-
-
-def _soft_match_topic(user_topic: str) -> Set[PaperID]:
-    # TODO: Adjust for casing
-    matched = set()
-    for topic, papers in TOPICS.items():
-        if user_topic == 'Any' or user_topic in topic:
-            matched |= papers
-    return matched
 
 
 @app.callback(
