@@ -52,6 +52,7 @@ def display_3d_scatter_plot(
         margin=dict(l=0, r=0, b=0, t=0),
         scene=dict(xaxis=axes, yaxis=axes, zaxis=axes),
         legend_orientation="h",
+        autosize=True
     )
     data = []
     for topic in top_10_topics:
