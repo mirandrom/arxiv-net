@@ -45,8 +45,10 @@ PaperID = Title = AuthorName = Topic = str
 AUTHORS: Dict[AuthorName, Set[PaperID]] = defaultdict(set)
 TOPICS: Dict[Topic, Set[PaperID]] = defaultdict(set)
 TITLES: Dict[Title, Set[PaperID]] = defaultdict(set)
-LOOKBACKS = ['This Week', 'This Month', 'This Year',
-             'Filter By Year (Callback Popup)']
+LOOKBACKS = [
+    'This Week', 'This Month', 'This Year',
+    # 'Filter By Year (Callback Popup)'
+]
 index = get_index()
 
 for paper_id, paper in tqdm(DB.items()):
@@ -308,14 +310,14 @@ explore_feed_layout = html.Div(
     id='explore-feed',
     children=[
         html.Div(
-            id='search-fee',
+            id='search-feed',
             children=[
                 html.Div(
                     id='filters',
                     children=[
-                        author_filter,
                         topics_filter,
-                        title_filter,
+                        author_filter,
+                        # title_filter,
                         date_filter,
                         search_button
                     ]
@@ -324,15 +326,16 @@ explore_feed_layout = html.Div(
                 html.Div(
                     id='feed-div',
                     children=[
-                        dcc.Loading(
+                        html.Div(
+                        # dcc.Loading(
+                            # type='cube',
                             id='display-feed',
-                            type='cube',
                             children=[
                                 html.Ul(
                                     children=[
-                                        html.Li(id=f'paper-placeholder-{i}')
-                                        for i in
-                                        range(DASH.feed.display_size - 1)
+                                        html.Li(
+                                            id=f'paper-placeholder-{i}')
+                                        for i in range(DASH.feed.display_size)
                                     ],
                                     style={'list-style-type': 'none'}
                                 )
@@ -344,24 +347,24 @@ explore_feed_layout = html.Div(
             ],
             className='four columns'
         ),
-    
         html.Div(
             id='focus-feed',
             children=[
-                dcc.Checklist(
-                    id='checklist',
+                html.Button('show_search_feed', id='hide-button'),
+                dcc.RadioItems(
+                    id='radio',
                     options=[
                         {'label': 'Similar', 'value': 'similar'},
                         {'label': 'References', 'value': 'references'},
                         {'label': 'Citations', 'value': 'citations'}
                     ],
-                    value=['Citations'],
+                    value='Citations',
                     labelStyle={'display': 'inline-block'},
 
                 ),
                 html.Hr(),
                 html.Div(
-                    id='feed2-div',
+                    id='focus-feed-div',
                     children=[
                     ],
                     style={
@@ -373,6 +376,7 @@ explore_feed_layout = html.Div(
             className='four columns'
         ),
         html.Div(
+            id='cytoscape-nodes',
             children=[
                 cyto.Cytoscape(
                     id='cytoscape-two-nodes',
@@ -548,7 +552,7 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
 def display_filters(feed: str):
     """ Choose available filters based on the type of feed """
     if feed == 'Explore':
-        return [topics_filter, author_filter, title_filter, date_filter, search_button]
+        return [title_filter, author_filter,  date_filter, search_button]
     elif feed == 'Recommend':
         return [date_filter, search_button]
     return []
@@ -582,12 +586,12 @@ def choose_feed(feed: str):
 
 @app.callback(
     [Output(f'paper-placeholder-{i}', 'className') for i in
-     range(DASH.feed.display_size - 1)],
-    [Input('feed2-div', 'children')],
+     range(DASH.feed.display_size )],
+    [Input('focus-feed-div', 'children')],
 )
 def highlight_selected_paper(*args):
-    classnames = ['paper-placeholder' for paper in
-                  range(DASH.feed.display_size - 1)]
+    print(f'Highlighting selected paper: {DASH.feed.selected}')
+    classnames = ['paper-placeholder' for _ in range(DASH.feed.display_size)]
     if DASH.feed.selected is not None:
         classnames[DASH.feed.selected] = 'selected-paper-div'
     return classnames
@@ -595,8 +599,28 @@ def highlight_selected_paper(*args):
 
 @app.callback(
     [
+        Output('search-feed', 'style'),
+        Output('hide-button', 'children'),
+        Output('cytoscape-nodes', 'className'),
+        Output('focus-feed', 'className')
+
+    ],
+    [Input('hide-button', 'n_clicks')],
+    [State('hide-button', 'children')]
+
+)
+def hide_search_feed(_, button_state):
+    print(button_state)
+    if button_state == 'hide_search_feed':
+        return [Hider.show, 'show_search_feed', 'four columns', 'four columns']
+    elif button_state == 'show_search_feed':
+        return [Hider.hide, 'hide_search_feed', 'six columns', 'six columns']
+
+
+@app.callback(
+    [
         Output(f'paper-placeholder-{i}', 'children')
-        for i in range(DASH.feed.display_size - 1)
+        for i in range(DASH.feed.display_size )
     ],
     [
         Input('button', 'n_clicks'),
@@ -644,17 +668,21 @@ def display_exploration_feed(
     
     matched_titles = _soft_match_title(ff['title'])
     matched_authors = _soft_match_author(ff['author'])
-    matched_topics = _soft_match_topic(ff['topic'])
-
+    # matched_topics = _soft_match_topic(ff['topic'])
+    print(ff)
     # print(f'Matched authors: {matched_authors}')
     # print(f'Matched titles: {matched_titles}')
     # print(f'Matched topics: {matched_topics}')
 
-    possible_papers = list(matched_authors & matched_topics & matched_titles)
+    possible_papers = list(matched_authors & matched_titles)
     DASH.feed = PaperFeed(collection=possible_papers)
 
     li = list()
-    for i, paper_id in enumerate(DASH.feed.displayed):
+    for i in range(DASH.feed.display_size):
+        if i >= len(DASH.feed.displayed):
+            li.append([])
+            continue
+        paper_id = DASH.feed.displayed[i]
         paper = DB[paper_id]
         li.append(
             [
@@ -671,16 +699,16 @@ def display_exploration_feed(
 
 
 @app.callback(
-    Output('feed2-div', 'children'),
+    Output('focus-feed-div', 'children'),
     [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-     range(DASH.feed.display_size - 1)],
-    [State('checklist', 'value')]
+     range(DASH.feed.display_size)],
+    [State('radio', 'value')]
 )
 def focus_feed(*args):
     """  """
     triggers = dash.callback_context.triggered
     print(triggers)
-    checklist = args[-1]
+    category = args[-1]
     idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
     DASH.feed.selected = idx
     DASH.focus_feed.collection = list()
@@ -690,14 +718,14 @@ def focus_feed(*args):
     print(f'PAPER SELECTED: {paper.title}')
 
     to_display = list()
-    for category in checklist:
-        if category == 'similar':
-            to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
-        elif category == 'citations':
-            to_display += paper.citations
-        elif category == 'references':
-            to_display += paper.references
+    if category == 'similar':
+        to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
+    elif category == 'citations':
+        to_display += paper.citations
+    elif category == 'references':
+        to_display += paper.references
     
+    to_display = to_display[:10]
     # TODO: sort things here + color code
     li = list()
     for p in tqdm(to_display):
@@ -724,29 +752,30 @@ def focus_feed(*args):
 
 @app.callback(
     Output('cytoscape-two-nodes', 'elements'),
-    [Input('feed2-div', 'children')],
+    [Input('focus-feed-div', 'children')],
 )
 def graph(*args):
-    print('EDITING GRAPH')
+    if not DASH.focus_feed.collection:
+        return []
+
     parent_nodes, nodes, edges = list(), list(), list()
-    
+
     years = []
     seconds_in_year = 31622400
     x = 0
-    
+
     # Get list of years
-    print(DASH.focus_feed.collection)
     for paper_id in DASH.focus_feed.collection:
         date = DB_ARXIV[paper_id]['published']
         date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
-    
+
         if date.year not in years:
             years.append(date.year)
             parent_nodes.append({
                 'data'   : {'id': date.year, 'label': date.year},
                 'classes': 'parent_node'
             })
-    
+
     years.sort(reverse=True)
 
     # Generate Nodes and Edges
