@@ -73,7 +73,8 @@ for paper_id, paper in papers_subset:
     # print(date)
     nodes.append({
         'data': {'id': paper_id, 'label': str(date.year) + paper.title[:30], 'parent': date.year},
-        'position': {'x': x, 'y': y}
+        'position': {'x': x, 'y': y},
+        'classes': 'node'
     })
     x += 50
     for reference in paper.references:
@@ -136,7 +137,7 @@ app.layout = html.Div([
             {
                 'selector': 'node',
                 'style': {
-                    'shape': 'rectangle',
+                    'shape': 'circle',
                     'text-valign': 'center',
                     'padding': 3,
                     'content': 'data(label)',
@@ -176,7 +177,25 @@ app.layout = html.Div([
                     'min-width': '400px',
                     'min-height': '250px',
                 }
-            }
+            },
+            {
+                'selector': '.node',
+                'style': {
+                    'background-color': 'white',
+                    'border-width': '2px',
+                    'border-color': 'green',
+                    'shape': 'circle',
+                }
+            },
+            {
+                'selector': '.main_node',
+                'style': {
+                    'background-color': 'white',
+                    'border-width': '2px',
+                    'width': '50px',
+                    'height': '50px',
+                }
+            },
         ],
         elements=parent_nodes+nodes+edges
     )
