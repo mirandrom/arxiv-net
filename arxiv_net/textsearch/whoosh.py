@@ -1,14 +1,13 @@
-from whoosh.index import create_in, open_dir, EmptyIndexError
+import os.path
+import pickle
+
+from tqdm import tqdm
 from whoosh.fields import *
+from whoosh.index import create_in, open_dir, EmptyIndexError
 from whoosh.qparser import QueryParser
-import whoosh
 
 from arxiv_net import ROOT_DIR
 from arxiv_net.utilities import Config
-
-from tqdm import tqdm
-import os.path
-import pickle
 
 index_dir = (ROOT_DIR.parent / "data/index").absolute()
 
@@ -21,7 +20,7 @@ def build_index():
     print(f"Creating index in {index_dir}")
     ix = create_in(index_dir, schema)
     writer = ix.writer()
-
+    
     print("Loading database of papers.")
     db = pickle.load(open(Config.ss_db_path, 'rb'))
     print("Indexing papers.")
@@ -46,8 +45,3 @@ def search_index(query: str, field: str, index):
     parsed_query = parser.parse(query)
     with index.searcher() as searcher:
         return [r['arxiv_id'] for r in searcher.search(parsed_query)]
-
-
-
-
-

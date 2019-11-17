@@ -16,6 +16,10 @@ TSNE_CSV["CitationVelocity"] = [DB[i].citationVelocity if i in DB else None for 
 TSNE_CSV["Year"] = [int(DB_ARXIV[i]["published"][:4]) if i in DB_ARXIV else None for i in TSNE_CSV['Unnamed: 0']]
 TSNE_CSV["Title"] = [DB[i].title if i in DB else None for i in TSNE_CSV['Unnamed: 0']]
 
+
+__all__ = ['display_3d_scatter_plot']
+
+
 @app.callback(
     Output("graph-3d-plot-tsne", "figure"),
     [

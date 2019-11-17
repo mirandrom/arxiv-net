@@ -16,6 +16,8 @@ from arxiv_net.textsearch.whoosh import get_index, search_index
 
 DASH = Dashboard()
 
+__all__ = ['highlight_selected_paper', 'hide_search_feed', 'display_exploration_feed', 'focus_feed', 'graph']
+
 
 def _soft_match_title(user_title: str) -> Set[PaperID]:
     search_results = set()
