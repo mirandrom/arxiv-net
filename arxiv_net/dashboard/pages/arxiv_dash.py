@@ -356,7 +356,6 @@ explore_feed_layout = html.Div(
                             'style'   : {
                                 # The default curve style does not work with certain arrows
                                 'curve-style'       : 'bezier',
-                                'source-arrow-shape': 'triangle',
                                 'color'             : 'black',
                                 'font-size'         : 8
                             }
@@ -389,16 +388,16 @@ explore_feed_layout = html.Div(
                             'style': {
                                 'background-color': 'white',
                                 'border-width': '2px',
-                                'border-color': 'pink',
+                                'border-color': '#0FA0CE',
                                 'shape': 'circle',
                             }
                         },
                         {
                             'selector': '.main_node',
                             'style': {
-                                'background-color': 'white',
+                                'background-color': 'rgb(255, 220, 246)',
                                 'border-width': '2px',
-                                'border-color': '#0FA0CE',
+                                'border-color': 'pink',
                                 'width': '50px',
                                 'height': '50px',
                             }

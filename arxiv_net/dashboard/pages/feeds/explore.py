@@ -272,7 +272,7 @@ def graph(a, selected_paper):
             centered_x = x_interval*len(paper_list)/2
             nodes.append({
                 'data': {'id': paper_id,
-                         'label': '0',
+                         'label': '',
                          'parent': date.year},
                 'position': {'x': centered_x, 'y': y},
                 'classes': 'main_node'
@@ -287,9 +287,13 @@ def graph(a, selected_paper):
             })
         x += x_interval
         for reference in paper.references:
-            if reference.paperId in DASH.focus_feed.collection:
-                edges.append({'data': {'id'    : reference.paperId + "." + paper_id,
-                                       'source': reference.paperId,
+            print("reference")
+            print(DASH.focus_feed.collection)
+            print(reference.paperId)
+            if reference.arxivId in DASH.focus_feed.collection:
+                print(reference)
+                edges.append({'data': {'id'    : reference.arxivId + "." + paper_id,
+                                       'source': reference.arxivId,
                                        'target': paper_id}})
     print(parent_nodes)
     print(nodes)
