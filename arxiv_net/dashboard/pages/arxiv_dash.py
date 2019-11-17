@@ -20,6 +20,7 @@ from arxiv_net.textsearch.whoosh import get_index, search_index
 from arxiv_net.users import USER_DIR
 from arxiv_net.utilities import Config
 from arxiv_net.dashboard import DASH_DIR
+from typing import NamedTuple
 
 ################################################################################
 # DATA LOADING
@@ -176,137 +177,6 @@ search_button = html.Div(
     className='one column custom_button',
 )
 
-tsne_plot = html.Div(
-    className="six columns",
-    children=[
-        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
-    ],
-),
-
-################################################################################
-# LAYOUT
-################################################################################
-
-layout = html.Div([
-    html.Div(
-        children=[
-            html.Div(
-                id='header',
-                children=[
-                    html.Div(
-                        [
-                            html.Div(
-                                id='title-div',
-                                children=[
-                                    html.H2("arXiv NET"),
-                                ],
-                                className='two columns title',
-                            ),
-                            html.Div(
-                                id='tabs-div',
-                                children=[
-                                    dcc.Tabs(
-                                        id='feed',
-                                        style=container_style,
-                                        value='Recommended',
-                                        children=[
-                                            dcc.Tab(
-                                                label='Explore',
-                                                value='Explore',
-                                                style=tab_style,
-                                                selected_style=selected_style,
-                                            ),
-                                            dcc.Tab(
-                                                label="Recommended",
-                                                value="Recommended",
-                                                style=tab_style,
-                                                selected_style=selected_style
-                                            ),
-                                            dcc.Tab(
-                                                label="Discover",
-                                                value="Discover",
-                                                style=tab_style,
-                                                selected_style=selected_style
-                                            )
-                                        ],
-                                    ),
-                                ],
-                                className='eight columns',
-                            ),
-                        ],
-                        className='row'
-                    ),
-                ],
-                className='header'
-            ),
-            
-            html.Div(
-                id='feed-1',
-                children=[
-                    html.Div(
-                        id='filters',
-                        children=[
-                            author_filter,
-                            topics_filter,
-                            title_filter,
-                            date_filter,
-                            search_button
-                        ]
-                    ),
-                    html.Hr(),
-                    html.Div(
-                        id='feed-div',
-                        children=[
-                            dcc.Loading(
-                                id='display-feed',
-                                type='cube',
-                                children=[
-                                    html.Ul(
-                                        children=[
-                                            html.Li(id=f'paper-placeholder-{i}')
-                                            for i in
-                                            range(DASH.feed.display_size - 1)
-                                        ],
-                                        style={'list-style-type': 'none'}
-                                    )
-                                
-                                ]
-                            )
-                        ]
-                    )
-                ],
-                className='six columns'
-            ),
-
-            html.Div(
-                id='feed-2',
-                children=[
-                    dcc.Checklist(
-                        id='checklist',
-                        options=[
-                            {'label': 'Similar', 'value': 'similar'},
-                            {'label': 'References', 'value': 'references'},
-                            {'label': 'Citations', 'value': 'citations'}
-                        ],
-                        value=['Citations']
-                    ),
-                    html.Hr(),
-                    html.Div(
-                        id='feed2-div',
-                        children=[
-                        ],
-                        style={
-                            'textAlign' : 'center',
-                            'fontFamily': 'Avenir',
-                        },
-                    ),
-                ],
-                # className='six columns'
-            ),
-        ],
-        className='page',
-    )
-])
 ################################################################################
 # STATIC MARKDOWN
 ################################################################################
@@ -346,90 +216,237 @@ def NamedRangeSlider(name, short, min, max, step, val, marks=None):
 
 
 ################################################################################
-# LAYOUT FACTORIES
+# LAYOUT
 ################################################################################
-def create_discover_layout(app):
-    return html.Div(
-        className="row",
-        style={"max-width": "100%", "font-size": "1.5rem", "padding": "0px 0px"},
-        children=[
-            # Demo Description
-            html.Div(
-                className="row background",
-                id="discover-explanation",
-                style={"padding": "50px 45px"},
-                children=[
-                    html.Div(
-                        id="discover-description-text",
-                        children=dcc.Markdown(discover_intro_md)
-                    ),
-                    # TODO: what is this
-                    html.Div(
-                        html.Button(id="learn-more-button", children=["Learn More"])
-                    ),
-                ],
-            ),
-            # Body
-            html.Div(
-                className="row background",
-                style={"padding": "10px"},
-                children=[
-                    html.Div(
-                        className="three columns",
-                        children=[
-                            Card(
-                                [
-                                    dcc.Dropdown(
-                                        id="discover-categories",
-                                        searchable=False,
-                                        clearable=False,
-                                        options=[
-                                            {
-                                                "label": "Machine Learning",
-                                                "value": "cs.LG",
-                                            },
-                                            {
-                                                "label": "Computer Vision",
-                                                "value": "cs.CV",
-                                            },
-                                            {
-                                                "label": "Computational Ling.",
-                                                "value": "cs.CL",
-                                            },
-                                        ],
-                                        placeholder="Select a machine learning field",
-                                        value="cs.LG",
-                                    ),
-                                    NamedRangeSlider(
-                                        name="Year",
-                                        short="discover-year",
-                                        min=1995,
-                                        max=2020,
-                                        step=None,
-                                        val=(2019, 2020),
-                                        marks={
-                                            i: str(i) for i in range(1995, 2020, 5)
+
+discover_feed_layout = html.Div(
+    id='discover-feed',
+    className="row",
+    style={
+        "max-width": "100%",
+        "font-size": "1.5rem",
+        "padding": "0px 0px",
+        # 'display': 'none'
+    },
+    children=[
+        # Demo Description
+        html.Div(
+            className="row background",
+            id="discover-explanation",
+            style={"padding": "50px 45px"},
+            children=[
+                html.Div(
+                    id="discover-description-text",
+                    children=dcc.Markdown(discover_intro_md)
+                ),
+                # TODO: what is this
+                html.Div(
+                    html.Button(id="learn-more-button", children=["Learn More"])
+                ),
+            ],
+        ),
+        # Body
+        html.Div(
+            className="row background",
+            style={"padding": "10px"},
+            children=[
+                html.Div(
+                    className="three columns",
+                    children=[
+                        Card(
+                            [
+                                dcc.Dropdown(
+                                    id="discover-categories",
+                                    searchable=False,
+                                    clearable=False,
+                                    options=[
+                                        {
+                                            "label": "Machine Learning",
+                                            "value": "cs.LG",
                                         },
-                                    ),
-                                ]
-                            )
-                        ],
-                    ),
+                                        {
+                                            "label": "Computer Vision",
+                                            "value": "cs.CV",
+                                        },
+                                        {
+                                            "label": "Computational Ling.",
+                                            "value": "cs.CL",
+                                        },
+                                    ],
+                                    placeholder="Select a machine learning field",
+                                    value="cs.LG",
+                                ),
+                                NamedRangeSlider(
+                                    name="Year",
+                                    short="discover-year",
+                                    min=1995,
+                                    max=2020,
+                                    step=None,
+                                    val=(2019, 2020),
+                                    marks={
+                                        i: str(i) for i in range(1995, 2020, 5)
+                                    },
+                                ),
+                            ]
+                        )
+                    ],
+                ),
+                html.Div(
+                    className="six columns",
+                    children=[
+                        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                    ],
+                ),
+            ],
+        ),
+    ],
+)
+
+explore_feed_layout = html.Div(
+    id='explore-feed',
+    children=[
+        html.Div(
+            id='feed-1',
+            children=[
+                html.Div(
+                    id='filters',
+                    children=[
+                        author_filter,
+                        topics_filter,
+                        title_filter,
+                        date_filter,
+                        search_button
+                    ]
+                ),
+                html.Hr(),
+                html.Div(
+                    id='feed-div',
+                    children=[
+                        dcc.Loading(
+                            id='display-feed',
+                            type='cube',
+                            children=[
+                                html.Ul(
+                                    children=[
+                                        html.Li(id=f'paper-placeholder-{i}')
+                                        for i in
+                                        range(DASH.feed.display_size - 1)
+                                    ],
+                                    style={'list-style-type': 'none'}
+                                )
+                        
+                            ]
+                        )
+                    ]
+                )
+            ],
+            className='six columns'
+        ),
+    
+        html.Div(
+            id='feed-2',
+            children=[
+                dcc.Checklist(
+                    id='checklist',
+                    options=[
+                        {'label': 'Similar', 'value': 'similar'},
+                        {'label': 'References', 'value': 'references'},
+                        {'label': 'Citations', 'value': 'citations'}
+                    ],
+                    value=['Citations']
+                ),
+                html.Hr(),
+                html.Div(
+                    id='feed2-div',
+                    children=[
+                    ],
+                    style={
+                        'textAlign' : 'center',
+                        'fontFamily': 'Avenir',
+                    },
+                ),
+            ],
+            # className='six columns'
+        ),
+    ],
+    className="row",
+    style={
+        'display' : 'none'
+    },
+)
+
+recommend_feed_layout = html.Div(
+    id='recommend-feed',
+    className="row",
+    style={
+        'display': 'none'
+    },
+)
+
+
+layout = html.Div([
+    html.Div(
+        children=[
+            html.Div(
+                id='header',
+                children=[
                     html.Div(
-                        className="six columns",
-                        children=[
-                            dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                        [
+                            html.Div(
+                                id='title-div',
+                                children=[
+                                    html.H2("arXiv NET"),
+                                ],
+                                className='two columns title',
+                            ),
+                            html.Div(
+                                id='tabs-div',
+                                children=[
+                                    dcc.Tabs(
+                                        id='feed',
+                                        style=container_style,
+                                        value='Recommend',
+                                        children=[
+                                            dcc.Tab(
+                                                label='Explore',
+                                                value='Explore',
+                                                style=tab_style,
+                                                selected_style=selected_style,
+                                            ),
+                                            dcc.Tab(
+                                                label="Recommend",
+                                                value="Recommend",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
+                                                label="Discover",
+                                                value="Discover",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            )
+                                        ],
+                                    ),
+                                ],
+                                className='eight columns',
+                            ),
                         ],
+                        className='row'
                     ),
                 ],
+                className='header'
             ),
+            explore_feed_layout,
+            recommend_feed_layout,
+            discover_feed_layout
         ],
+        className='page',
     )
+])
 
+# -----------------------------------------------------------------------------
+# Helper methods
 
-################################################################################
-# HELPER METHODS
-################################################################################
 def _soft_match_title(user_title: str) -> Set[PaperID]:
     search_results = set()
     if user_title == 'Any':
@@ -458,17 +475,98 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     return matched
 
 
-def exploration_feed(username: str,
-                     author: str,
-                     title: str,
-                     topic: str,
-                     date: str
-                     ):
-    matched_titles = _soft_match_title(title)
-    matched_authors = _soft_match_author(author)
-    matched_topics = _soft_match_topic(topic)
+# -----------------------------------------------------------------------------
+# Exploration feed callbacks
 
-    print(author, title, topic)
+@app.callback(
+    Output('filters', 'children'),
+    [Input('feed', 'value')]
+)
+def display_filters(feed: str):
+    """ Choose available filters based on the type of feed """
+    if feed == 'Explore':
+        return [topics_filter, author_filter, title_filter, date_filter, search_button]
+    elif feed == 'Recommend':
+        return [date_filter, search_button]
+    return []
+
+
+class Hider(NamedTuple):
+    hide = {'display': 'none'}
+    show = {'display': 'block'}
+
+
+@app.callback(
+    [
+        Output('explore-feed', 'style'),
+        Output('discover-feed', 'style'),
+        Output('recommend-feed', 'style'),
+    ],
+    [Input('feed', 'value')]
+)
+def choose_feed(feed: str):
+    """ Shows / hides feeds based on the user selection """
+    if feed == 'Explore':
+        return [Hider.show, Hider.hide, Hider.hide]
+    elif feed == 'Discover':
+        return [Hider.hide, Hider.show, Hider.hide]
+    elif feed == 'Recommend':
+        return [Hider.hide, Hider.hide, Hider.show]
+    
+
+@app.callback(
+    [
+        Output(f'paper-placeholder-{i}', 'children')
+        for i in range(DASH.feed.display_size - 1)
+    ],
+    [
+        Input('button', 'n_clicks'),
+    ],
+    [
+        State('filters', 'children'),
+        State('button', 'children'),
+        State('feed', 'value'),
+        State('user-name', 'children')
+    ],
+)
+def display_exploration_feed(
+    n_clicks,
+    filters,
+    button_state,
+    feed,
+    username
+):
+    """ Populates pre-allocated list in the explore-div with the papers
+    that match search results. Updates the global state of `PaperFeed` to
+    allow for other callbacks to utilize the search results.
+    """
+    if not n_clicks:
+        raise PreventUpdate
+    if button_state == 'Stop':
+        raise PreventUpdate
+    
+    if feed != 'Explore':
+        return []
+    
+    # Extract values for selected filters
+    ff = dict()
+    for f in filters:
+        filter_name = f['props']['id'].split('-')[0]
+        if filter_name == 'button':
+            continue
+        filter_value = f['props']['children'][1]['props']['value']
+        ff[filter_name] = filter_value
+    
+    # Extract username in case logged in
+    username = 'default'
+    if isinstance(username, dict):
+        # username = username['props']
+        pass  # Use `default` user for testing
+    
+    matched_titles = _soft_match_title(ff['title'])
+    matched_authors = _soft_match_author(ff['author'])
+    matched_topics = _soft_match_topic(ff['topic'])
+
     # print(f'Matched authors: {matched_authors}')
     # print(f'Matched titles: {matched_titles}')
     # print(f'Matched topics: {matched_topics}')
@@ -489,75 +587,6 @@ def exploration_feed(username: str,
         )
     return li
 
-################################################################################
-# CALLBACKS
-################################################################################
-@app.callback(
-    Output('filters', 'children'),
-    [Input('feed', 'value')]
-)
-def display_filters(feed: str):
-    """ Choose available filters based on the type of feed """
-    if feed == 'Explore':
-        return [topics_filter, author_filter, title_filter, date_filter, search_button]
-    elif feed == 'Recommended':
-        return [date_filter, search_button]
-    elif feed == 'Discover':
-        return create_discover_layout(app)
-    else:
-        return []
-
-@app.callback(
-    [
-        # Output('display-feed', 'children'),
-        Output(f'paper-placeholder-{i}', 'children')
-        for i in range(DASH.feed.display_size - 1)
-    ],
-    [
-        Input('button', 'n_clicks'),
-    ],
-    [
-        State('filters', 'children'),
-        State('button', 'children'),
-        State('feed', 'value'),
-        State('user-name', 'children')
-    ],
-)
-def display_feed(
-    n_clicks,
-    filters,
-    button_state,
-    feed,
-    username
-):
-    if not n_clicks:
-        raise PreventUpdate
-    if button_state == 'Stop':
-        raise PreventUpdate
-    
-    # Extract values for selected filters
-    ff = dict()
-    for f in filters:
-        filter_name = f['props']['id'].split('-')[0]
-        if filter_name == 'button':
-            continue
-        filter_value = f['props']['children'][1]['props']['value']
-        ff[filter_name] = filter_value
-    
-    # Extract username in case logged in
-    username = 'default'
-    if isinstance(username, dict):
-        # username = username['props']
-        pass  # Use `default` user for testing
-    
-    # Construct appropraite feed
-    if feed == 'Recommended':
-        return recommendation_feed(username, **ff)
-    elif feed == 'Explore':
-        return exploration_feed(username, **ff)
-    else:
-        raise ValueError(f'Unknown feed {feed}')
-
 
 @app.callback(
     Output('feed2-div', 'children'),
@@ -566,13 +595,13 @@ def display_feed(
     [State('checklist', 'value')]
 )
 def feed2(*args):
-    """ Dynamically create callbacks for each paper? """
-    print(dash.callback_context.triggered)
+    """  """
+    triggers = dash.callback_context.triggered
+    print(triggers)
     checklist = args[-1]
-    idx = int(
-        dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
-            -1])
-    paper = DB[DASH.feed.displayed[idx]]
+    idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
+    paper_id = DASH.feed.displayed[idx]
+    paper = DB[paper_id]
     
     print(f'PAPER SELECTED: {paper.title}')
     li = list()
@@ -580,7 +609,8 @@ def feed2(*args):
     to_display = list()
     for category in checklist:
         if category == 'similar':
-            pass
+            # TODO: does this actually work?
+            to_display += list(SIMILARITIES[paper_id])
         elif category == 'citations':
             to_display += paper.citations
         elif category == 'references':
@@ -604,6 +634,8 @@ def feed2(*args):
         ))
     return html.Ul(children=li)
 
+# -----------------------------------------------------------------------------
+# Discovery feed callbacks
 
 @app.callback(
     Output("graph-3d-plot-tsne", "figure"),
@@ -643,9 +675,11 @@ def display_3d_scatter_plot(
     figure = go.Figure(data=[scatter], layout=layout)
     return figure
 
+# -----------------------------------------------------------------------------
+# Recommendation feed callbacks
 
 def recommendation_feed(username: str, date: str) -> html.Ul:
-    """ Generates a list of recommended paper based on user's preference.
+    """ Generates a list of Recommend paper based on user's preference.
 
     """
     # TODO: dump preferences in SQL instead of flat files
@@ -671,3 +705,4 @@ def recommendation_feed(username: str, date: str) -> html.Ul:
             style={'list-style-type': 'none'}
         ))
     return html.Ul(children=li)
+
