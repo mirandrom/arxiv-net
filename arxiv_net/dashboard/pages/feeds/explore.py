@@ -46,7 +46,6 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
             matched |= papers
     return matched
 
-
 @app.callback(
     [Output(f'paper-placeholder-{i}', 'className') for i in
      range(DASH.feed.display_size)],
@@ -74,10 +73,10 @@ def highlight_selected_paper(*args):
 )
 def hide_search_feed(_, button_state):
     print(button_state)
-    if button_state == 'hide_search_feed':
-        return [Hider.show, 'show_search_feed', 'four columns', 'four columns']
-    elif button_state == 'show_search_feed':
-        return [Hider.hide, 'hide_search_feed', 'six columns', 'six columns']
+    if button_state == 'show search feed':
+        return [Hider.show, 'hide search feed', 'four columns', 'four columns']
+    elif button_state == 'hide search feed':
+        return [Hider.hide, 'show search feed', 'six columns', 'six columns']
 
 
 @app.callback(
@@ -166,8 +165,8 @@ def display_exploration_feed(
         Output('focus-feed-div', 'children'),
         Output('focus-feed', 'style'),
     ],
-    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-     range(DASH.feed.display_size)],
+    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in range(DASH.feed.display_size)] +
+    [Input('radio', 'value')],
     [State('radio', 'value')]
 )
 def focus_feed(*args):
@@ -175,10 +174,13 @@ def focus_feed(*args):
     triggers = dash.callback_context.triggered
     print(triggers)
     category = args[-1]
-    idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
-    DASH.feed.selected = idx
+    input = triggers[0]['prop_id'].split('.')[0].split('-')[-1]
+    if input != 'radio':
+        DASH.feed.selected = int(input)
+    elif DASH.feed.selected is None:
+        return html.Ul(), {'display': 'block'}
     DASH.focus_feed.collection = list()
-    paper_id = DASH.feed.displayed[idx]
+    paper_id = DASH.feed.displayed[DASH.feed.selected]
     paper = DB[paper_id]
     
     print(f'PAPER SELECTED: {paper.title}')

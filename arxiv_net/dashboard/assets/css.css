@@ -184,6 +184,13 @@ li {
 	margin: 0px ! important;
 }
 
+#cytoscape-nodes {
+	display: block;
+	float: right;
+	min-width: 0px ! important;
+	max-width: 49% ! important;
+}
+
 .paper-placeholder .selected-paper-div {
 	margin: -24px -4px ! important;
 	padding: 0px ! important;

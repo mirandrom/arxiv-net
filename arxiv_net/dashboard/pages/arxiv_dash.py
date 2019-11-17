@@ -302,7 +302,7 @@ explore_feed_layout = html.Div(
         html.Div(
             id='focus-feed',
             children=[
-                html.Button('show_search_feed', id='hide-button'),
+                html.Button('hide search feed', id='hide-button'),
                 html.Div('Related papers: '),
                 dcc.RadioItems(
                     id='radio',
@@ -335,7 +335,7 @@ explore_feed_layout = html.Div(
                     id='cytoscape-two-nodes',
                     userPanningEnabled=False,
                     userZoomingEnabled=False,
-                    layout={'name': 'preset', 'padding': 40, 'fit': True},
+                    layout={'name': 'preset', 'padding': 40, 'fit': True, 'autosize': True},
                     style={'width' : '500px', 'height': '700px'},
                     stylesheet=[
                         {
@@ -528,6 +528,12 @@ layout = html.Div([
                                         value='Discover',
                                         children=[
                                             dcc.Tab(
+                                                label="Discover",
+                                                value="Discover",
+                                                style=tab_style,
+                                                selected_style=selected_style
+                                            ),
+                                            dcc.Tab(
                                                 label='Search',
                                                 value='Explore',
                                                 style=tab_style,
@@ -536,12 +542,6 @@ layout = html.Div([
                                             dcc.Tab(
                                                 label="Library",
                                                 value="Recommend",
-                                                style=tab_style,
-                                                selected_style=selected_style
-                                            ),
-                                            dcc.Tab(
-                                                label="Discover",
-                                                value="Discover",
                                                 style=tab_style,
                                                 selected_style=selected_style
                                             )
