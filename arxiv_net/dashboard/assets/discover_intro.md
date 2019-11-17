@@ -1,6 +1,8 @@
-# Discover new papers!
-Explore the graph on the right to find hyped papers.  
-Clustering papers based on their semantic representation is a 
-new and interactive way of discovering new papers.
+###### Discover new papers!
+We project our paper2vec embeddings into 3d space for you to explore interactively. 
+Select a category above, filter by double-clicking one of the popular topics in the legend, 
+hover over articles to see their title, and click on one you find interesting 
+to read the abstract!
 
-TODO: make this less garbage
+The size of each node represents how influential and cited it is. 
+You might notice that papers from earlier years are fewer and larger as a result!

@@ -1,13 +1,48 @@
-import dash_core_components as dcc
+import datetime
+import json
+import pickle
+from collections import defaultdict
+from typing import Dict, Set, List, Optional
+from tqdm import tqdm
+from pathlib import Path
+import pandas as pd
 import dash_cytoscape as cyto
+from collections import Counter
+
+import dash
+import dash_core_components as dcc
 import dash_html_components as html
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
+from dash.exceptions import PreventUpdate
+import plotly.graph_objs as go
 
 from arxiv_net.dashboard import DASH_DIR, LOOKBACKS, TOPICS
 from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.dashboard import Hider
 from arxiv_net.dashboard.pages.feeds.explore import DASH
 from arxiv_net.dashboard.server import app
+from arxiv_net.textsearch.whoosh import get_index, search_index
+from arxiv_net.users import USER_DIR
+from arxiv_net.utilities import Config
+from arxiv_net.dashboard import DASH_DIR
+from typing import NamedTuple
+
+################################################################################
+# DATA LOADING
+################################################################################
+DB = pickle.load(open(Config.ss_db_path, 'rb'))
+DB_ARXIV = pickle.load(open(Config.db_path, 'rb'))
+SIMILARITIES = pickle.load(open(Config.sim_path, 'rb'))
+
+embed_db_path = Path(Config.bert_abstract_embed_db_path)
+embeds_tsne_csv_path = embed_db_path.with_name(embed_db_path.name.replace(".p", "_tsne.csv"))
+TSNE_CSV = pd.read_csv(embeds_tsne_csv_path, dtype=str, names=["arxiv_id", "x", "y", "z"], skiprows=1)
+TSNE_CSV["Category"] = [DB_ARXIV[i]["arxiv_primary_category"]["term"] if i in DB_ARXIV else None for i in TSNE_CSV['arxiv_id']]
+TSNE_CSV["CitationVelocity"] = [DB[i].citationVelocity if i in DB else None for i in TSNE_CSV['arxiv_id']]
+TSNE_CSV["InfluentialCitationCount"] = [DB[i].influentialCitationCount if i in DB else None for i in TSNE_CSV['arxiv_id']]
+TSNE_CSV["Topics"] = [[t.topic for t in DB[i].topics] if i in DB else [] for i in TSNE_CSV['arxiv_id']]
+TSNE_CSV["Year"] = [int(DB_ARXIV[i]["published"][:4]) if i in DB_ARXIV else None for i in TSNE_CSV['arxiv_id']]
+TSNE_CSV["Title"] = [f"[{i}] {DB[i].title}" if i in DB else None for i in TSNE_CSV['arxiv_id']]
 
 # TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
 
@@ -101,7 +136,7 @@ def NamedRangeSlider(name, short, min, max, step, val, marks=None):
         step = None
     else:
         marks = {i: i for i in range(min, max + 1, step)}
-    
+
     return html.Div(
         style={"margin": "25px 5px 30px 0px"},
         children=[
@@ -137,22 +172,6 @@ discover_feed_layout = html.Div(
         'display'  : 'none'
     },
     children=[
-        # Demo Description
-        html.Div(
-            className="row background",
-            id="discover-explanation",
-            style={"padding": "50px 45px"},
-            children=[
-                html.Div(
-                    id="discover-description-text",
-                    children=dcc.Markdown(discover_intro_md)
-                ),
-                # TODO: what is this
-                html.Div(
-                    html.Button(id="learn-more-button", children=["Learn More"])
-                ),
-            ],
-        ),
         # Body
         html.Div(
             className="row background",
@@ -160,6 +179,7 @@ discover_feed_layout = html.Div(
             children=[
                 html.Div(
                     className="three columns",
+                    style={"padding": "30px"},
                     children=[
                         Card(
                             [
@@ -187,13 +207,29 @@ discover_feed_layout = html.Div(
                                 NamedRangeSlider(
                                     name="Year",
                                     short="discover-year",
-                                    min=1995,
+                                    min=2015,
                                     max=2020,
-                                    step=None,
-                                    val=(2019, 2020),
+                                    step=1,
+                                    val=(2019, 2021),
                                     marks={
-                                        i: str(i) for i in range(1995, 2020, 5)
+                                        i: str(i) for i in range(2015, 2021)
                                     },
+                                ),
+                                html.Div(
+                                    className="row background",
+                                    id="discover-explanation",
+                                    children=[
+                                        html.Div(
+                                            id="discover-description-text",
+                                            children=dcc.Markdown(
+                                                discover_intro_md)
+                                        ),
+                                        # TODO: what is this
+                                        html.Div(
+                                            html.Button(id="learn-more-button",
+                                                        children=["Learn More"])
+                                        ),
+                                    ],
                                 ),
                             ]
                         )
@@ -202,8 +238,19 @@ discover_feed_layout = html.Div(
                 html.Div(
                     className="six columns",
                     children=[
-                        dcc.Graph(id="graph-3d-plot-tsne",
-                                  style={"height": "98vh"})
+                        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                    ],
+                ),
+                html.Div(
+                    className="three columns",
+                    id="side-pane",
+                    children=[
+                        Card(
+                            style={"padding": "25px"},
+                            children=[
+                                html.Div(id="div-plot-click-abstract"),
+                            ],
+                        )
                     ],
                 ),
             ],
@@ -244,7 +291,7 @@ explore_feed_layout = html.Div(
                                     ],
                                     style={'list-style-type': 'none'}
                                 )
-                            
+
                             ]
                         )
                     ]
@@ -266,7 +313,7 @@ explore_feed_layout = html.Div(
                     ],
                     value='similar',
                     labelStyle={'display': 'inline-block'},
-                
+
                 ),
                 html.Hr(),
                 html.Div(
