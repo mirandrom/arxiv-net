@@ -615,6 +615,7 @@ def feed2(*args):
     print(triggers)
     checklist = args[-1]
     idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
+    DASH.feed.selected = idx
     paper_id = DASH.feed.displayed[idx]
     paper = DB[paper_id]
     
@@ -624,8 +625,9 @@ def feed2(*args):
     to_display = list()
     for category in checklist:
         if category == 'similar':
+            pass
             # TODO: does this actually work?
-            to_display += list(SIMILARITIES[paper_id])
+            # to_display += list(SIMILARITIES[paper_id])
         elif category == 'citations':
             to_display += paper.citations
         elif category == 'references':
