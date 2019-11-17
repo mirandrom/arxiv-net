@@ -34,6 +34,8 @@ app.layout = html.Div(
             ),
         ], className='container-width'),
         dcc.Location(id='url', refresh=False),
+        html.Div(id='selected_paper', style={'display': 'none'})
+
     ]
 )
 

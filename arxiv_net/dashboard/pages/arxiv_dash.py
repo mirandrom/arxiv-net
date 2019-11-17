@@ -328,7 +328,9 @@ explore_feed_layout = html.Div(
                             'style'   : {
                                 'shape'        : 'rectangle',
                                 'text-halign'  : 'left',
-                                'text-margin-x': -1,
+                                'text-valign'  : 'top',
+                                'text-margin-x': 45,
+                                'text-margin-y': 25,
                                 'font-size'    : 14,
                                 'min-width'    : '400px',
                                 'min-height'   : '250px',
@@ -339,7 +341,7 @@ explore_feed_layout = html.Div(
                             'style': {
                                 'background-color': 'white',
                                 'border-width': '2px',
-                                'border-color': '#0FA0CE',
+                                'border-color': 'pink',
                                 'shape': 'circle',
                             }
                         },
@@ -348,6 +350,7 @@ explore_feed_layout = html.Div(
                             'style': {
                                 'background-color': 'white',
                                 'border-width': '2px',
+                                'border-color': '#0FA0CE',
                                 'width': '50px',
                                 'height': '50px',
                             }
@@ -489,3 +492,4 @@ def choose_feed(feed: str):
         return [Hider.hide, Hider.show, Hider.hide]
     elif feed == 'Recommend':
         return [Hider.hide, Hider.hide, Hider.show]
+

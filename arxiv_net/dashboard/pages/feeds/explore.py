@@ -219,9 +219,10 @@ def focus_feed(*args):
 
 @app.callback(
     Output('cytoscape-two-nodes', 'elements'),
-    [Input('focus-feed-div', 'children')],
+    [Input('focus-feed-div', 'children'), Input('selected_paper', 'children')],
 )
-def graph(*args):
+
+def graph(a, selected_paper):
     if not DASH.focus_feed.collection:
         return []
     
@@ -247,9 +248,14 @@ def graph(*args):
     
     # Generate Nodes and Edges
     total_height = 500
+    x_interval = 50
     number_of_sections = len(years)
     section_height = total_height / number_of_sections
-    for paper_id in tqdm(DASH.focus_feed.collection):
+    paper_list = DASH.focus_feed.collection
+    print(list(paper_list))
+    print(selected_paper)
+    paper_list.append(selected_paper)
+    for paper_id in tqdm(paper_list):
         paper = DB[paper_id]
         date = DB_ARXIV[paper_id]['published']
         date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
@@ -262,14 +268,24 @@ def graph(*args):
         # print(y)
         # print(date)
         index = DASH.focus_feed.collection.index(paper_id) + 1
-        nodes.append({
-            'data'    : {'id'    : paper_id,
-                         'label' : index,
+        if paper_id == selected_paper:
+            centered_x = x_interval*len(paper_list)/2
+            nodes.append({
+                'data': {'id': paper_id,
+                         'label': '0',
                          'parent': date.year},
-            'position': {'x': x, 'y': y},
-            'classes': 'node'
-        })
-        x += 50
+                'position': {'x': centered_x, 'y': y},
+                'classes': 'main_node'
+            })
+        else:
+            nodes.append({
+                'data'    : {'id'    : paper_id,
+                             'label' : index,
+                             'parent': date.year},
+                'position': {'x': x, 'y': y},
+                'classes': 'node'
+            })
+        x += x_interval
         for reference in paper.references:
             if reference.paperId in DASH.focus_feed.collection:
                 edges.append({'data': {'id'    : reference.paperId + "." + paper_id,
@@ -279,3 +295,36 @@ def graph(*args):
     print(nodes)
     print(edges)
     return parent_nodes + nodes + edges
+
+
+# store selected paper
+@app.callback(Output('selected_paper', 'children'),
+              [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
+               range(DASH.feed.display_size)])
+def on_click(*args):
+    triggers = dash.callback_context.triggered
+    print(triggers)
+    idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
+    DASH.feed.selected = idx
+    DASH.focus_feed.collection = list()
+    paper_id = DASH.feed.displayed[idx]
+
+    return paper_id
+
+# # output the stored clicks in the table cell.
+# @app.callback(Output('{}-clicks'.format(store), 'children'),
+#               # Since we use the data prop in an output,
+#               # we cannot get the initial data on load with the data prop.
+#               # To counter this, you can use the modified_timestamp
+#               # as Input and the data as State.
+#               # This limitation is due to the initial None callbacks
+#               # https://github.com/plotly/dash-renderer/pull/81
+#               [Input(store, 'modified_timestamp')],
+#               [State(store, 'data')])
+# def on_data(ts, data):
+#     if ts is None:
+#         raise PreventUpdate
+#
+#     data = data or {}
+#
+#     return data.get('selected_paper')
