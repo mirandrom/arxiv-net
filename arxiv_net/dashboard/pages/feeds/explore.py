@@ -162,7 +162,10 @@ def display_exploration_feed(
 
 
 @app.callback(
-    Output('focus-feed-div', 'children'),
+    [
+        Output('focus-feed-div', 'children'),
+        Output('focus-feed', 'style'),
+    ],
     [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
      range(DASH.feed.display_size)],
     [State('radio', 'value')]
@@ -204,13 +207,14 @@ def focus_feed(*args):
                     _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
                     """
                 ),
+                html.P(to_display.index(p) + 1, className='index'),
                 html.Button('More like this', id=f'more-{paper.doi}'),
                 html.Button('Less like this', id=f'less-{paper.doi}'),
                 html.Hr(),
             ],
             style={'list-style-type': 'none'}
         ))
-    return html.Ul(children=li)
+    return html.Ul(children=li), {'display': 'block'}
 
 
 @app.callback(
@@ -257,11 +261,13 @@ def graph(*args):
             normalized_date * section_height) + section_height * year_index
         # print(y)
         # print(date)
+        index = DASH.focus_feed.collection.index(paper_id) + 1
         nodes.append({
             'data'    : {'id'    : paper_id,
-                         'label' : str(date.year) + paper.title[:30],
+                         'label' : index,
                          'parent': date.year},
-            'position': {'x': x, 'y': y}
+            'position': {'x': x, 'y': y},
+            'classes': 'node'
         })
         x += 50
         for reference in paper.references:
@@ -269,5 +275,7 @@ def graph(*args):
                 edges.append({'data': {'id'    : reference.paperId + "." + paper_id,
                                        'source': reference.paperId,
                                        'target': paper_id}})
-    print(parent_nodes + nodes + edges)
+    print(parent_nodes)
+    print(nodes)
+    print(edges)
     return parent_nodes + nodes + edges

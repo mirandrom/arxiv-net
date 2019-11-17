@@ -185,3 +185,50 @@ h2 {
     margin-left: auto;
     margin-right: auto;
 }
+
+#filters {
+    margin-bottom: 50px;
+}
+
+#search-feed, #focus-feed {
+    padding: 10px;
+    border-right: 1px solid #ccc;
+}
+
+#display-feed ul li {
+    cursor: pointer;
+}
+
+#focus-feed {
+    display: none;
+}
+
+#focus-feed #radio {
+    margin-top: 10px;
+}
+
+#focus-feed #radio label {
+   margin-right: 10px;
+   cursor: pointer;
+}
+
+#focus-feed ul li {
+    position: relative;
+}
+
+#focus-feed ul li button {
+    margin: 0 5px;
+}
+
+#focus-feed .index {
+    position: absolute;
+    top: -30px;
+    right: 0px;
+    font-size: 14px;
+    font-weight: 100;
+    color: #b1b1b1;
+    font-family: 'Times New Roman'
+}
+
+
+

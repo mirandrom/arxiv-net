@@ -263,7 +263,7 @@ explore_feed_layout = html.Div(
                         {'label': 'References', 'value': 'references'},
                         {'label': 'Citations', 'value': 'citations'}
                     ],
-                    value='Citations',
+                    value='similar',
                     labelStyle={'display': 'inline-block'},
                 
                 ),
@@ -285,23 +285,22 @@ explore_feed_layout = html.Div(
             children=[
                 cyto.Cytoscape(
                     id='cytoscape-two-nodes',
-                    userPanningEnabled=False,
+                    userPanningEnabled=True,
                     userZoomingEnabled=False,
-                    autolock=True,
-                    layout={'name': 'grid', 'padding': 40, 'fit': True},
-                    style={'width' : '500px', 'height': '500px',
-                           'border': '1px solid black'},
+                    layout={'name': 'preset', 'padding': 40, 'fit': True},
+                    style={'width' : '500px', 'height': '700px'},
                     stylesheet=[
                         {
                             'selector': 'node',
                             'style'   : {
-                                'shape'         : 'rectangle',
+                                'shape'         : 'circle',
                                 'text-valign'   : 'center',
                                 'padding'       : 3,
                                 'content'       : 'data(label)',
                                 'text-wrap'     : 'wrap',
                                 'text-max-width': '12px',
-                                'font-size'     : 5
+                                'font-size'     : 12,
+                                'font-weight': 600
                             }
                         },
                         {
@@ -317,7 +316,6 @@ explore_feed_layout = html.Div(
                         {
                             'selector': '#one',
                             'style'   : {
-                                'shape'      : 'rectangle',
                                 'text-valign': 'center',
                                 'width'      : 'label',
                                 'content'    : 'hi\nbye',
@@ -335,7 +333,25 @@ explore_feed_layout = html.Div(
                                 'min-width'    : '400px',
                                 'min-height'   : '250px',
                             }
-                        }
+                        },
+                        {
+                            'selector': '.node',
+                            'style': {
+                                'background-color': 'white',
+                                'border-width': '2px',
+                                'border-color': '#0FA0CE',
+                                'shape': 'circle',
+                            }
+                        },
+                        {
+                            'selector': '.main_node',
+                            'style': {
+                                'background-color': 'white',
+                                'border-width': '2px',
+                                'width': '50px',
+                                'height': '50px',
+                            }
+                        },
                     ],
                     elements=[]
                 )
