@@ -333,7 +333,7 @@ explore_feed_layout = html.Div(
             children=[
                 cyto.Cytoscape(
                     id='cytoscape-two-nodes',
-                    userPanningEnabled=True,
+                    userPanningEnabled=False,
                     userZoomingEnabled=False,
                     layout={'name': 'preset', 'padding': 40, 'fit': True},
                     style={'width' : '500px', 'height': '700px'},
@@ -401,8 +401,67 @@ explore_feed_layout = html.Div(
                                 'height': '50px',
                             }
                         },
-                    ],
-                    elements=[]
+                        {
+                            'selector': '.border-1',
+                            'style': {
+                                'border-color': '#1eaedb',
+                            }
+                        },
+                        {
+                            'selector': '.border-2',
+                            'style': {
+                                'border-color': '#34b6de',
+                            }
+                        },
+                        {
+                            'selector': '.border-3',
+                            'style': {
+                                'border-color': '#4abee2',
+                            }
+                        },
+                        {
+                            'selector': '.border-4',
+                            'style': {
+                                'border-color': '#61c6e5',
+                            }
+                        },
+                        {
+                            'selector': '.border-5',
+                            'style': {
+                                'border-color': '#78cee9',
+                            }
+                        },
+                        {
+                            'selector': '.border-6',
+                            'style': {
+                                'border-color': '#8ed6ed',
+                            }
+                        },
+                        {
+                            'selector': '.border-7',
+                            'style': {
+                                'border-color': '#a5def0',
+                            }
+                        },
+                        {
+                            'selector': '.border-8',
+                            'style': {
+                                'border-color': '#bbe6f4',
+                            }
+                        },
+                        {
+                            'selector': '.border-9',
+                            'style': {
+                                'border-color': '#d2eef7',
+                            }
+                        },
+                        {
+                            'selector': '.border-10',
+                            'style': {
+                                'border-color': '#e8f6fb',
+                            }
+                        },
+                    ]
                 )
             ],
             className='four columns'

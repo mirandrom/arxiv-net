@@ -275,8 +275,7 @@ def graph(a, selected_paper):
                          'label': '',
                          'parent': date.year},
                 'position': {'x': centered_x, 'y': y},
-                'classes': 'main_node',
-                'style': {'border-color': 'rgb(15, 160, 206)'}
+                'classes': 'main_node'
             })
         else:
             nodes.append({
@@ -284,7 +283,7 @@ def graph(a, selected_paper):
                              'label' : index,
                              'parent': date.year},
                 'position': {'x': x, 'y': y},
-                'classes': 'node'
+                'classes': 'node ' + 'border-' + str(index)
             })
         x += x_interval
         for reference in paper.references:

@@ -250,4 +250,6 @@ li {
 }
 
 
-
+.border-6 {
+    border-color: rgba(15, 160, 206, 0.5);
+}
