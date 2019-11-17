@@ -302,7 +302,7 @@ explore_feed_layout = html.Div(
         html.Div(
             id='focus-feed',
             children=[
-                html.Button('show search feed', id='hide-button'),
+                html.Button('show_search_feed', id='hide-button'),
                 html.Div('Related papers: '),
                 dcc.RadioItems(
                     id='radio',
@@ -457,7 +457,7 @@ layout = html.Div([
                             html.Div(
                                 id='title-div',
                                 children=[
-                                    html.H2("arXiv NET"),
+                                    html.H2("ArXivNet"),
                                 ],
                                 className='two columns title',
                             ),
