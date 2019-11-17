@@ -190,12 +190,12 @@ li {
 }
 
 .paper-placeholder:hover {
-	background-color: #ffdee4;
+	background-color: #ffdbf7;
 }
 
 .selected-paper-div {
-	background-color: darkred;
-	color: white;
+	background-color: pink;
+	color: black;
 }
 
 .page {
