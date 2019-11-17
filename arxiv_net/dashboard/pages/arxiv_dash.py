@@ -1,8 +1,9 @@
 import json
 import pickle
 from collections import defaultdict
-from typing import Dict, Set
+from typing import Dict, Set, List, Optional
 
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
@@ -11,9 +12,9 @@ from tqdm import tqdm
 
 from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.server import app
+from arxiv_net.textsearch.whoosh import get_index, search_index
 from arxiv_net.users import USER_DIR
 from arxiv_net.utilities import Config
-from arxiv_net.textsearch.whoosh import get_index, search_index
 
 ################################################################################
 # DATA LOADING
@@ -40,10 +41,58 @@ for paper_id, paper in tqdm(DB.items()):
         TOPICS[topic.topic].add(paper_id)
     TITLES[paper.title].add(paper_id)
 
+
+class PaperFeed:
+    """" A tracker for displayed / selected papers
+    """
+    
+    def __init__(self,
+                 collection: List[PaperID],
+                 selected: Optional[PaperID] = None,
+                 display_size: int = 10,
+                 ):
+        self.collection = collection
+        self.display_size = display_size
+        self.selected = selected
+        self.current_page = 0
+        self.total_pages = len(self.collection) // display_size + 1
+    
+    @property
+    def displayed(self):
+        return self.collection[self.display_size * self.current_page:
+                               self.display_size * self.current_page + self.display_size]
+    
+    def __call__(self, *args, **kwargs):
+        return self.displayed
+    
+    def reset(self):
+        self.collection = list()
+        self.selected = None
+        self.current_page = 0
+    
+    def pg_up(self):
+        self.current_page += 1
+    
+    def pg_down(self):
+        self.current_page -= 1
+
+
+class Dashboard:
+    """ Encapsulates all methods related to the dash.
+    """
+    
+    def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
+        self.current_user = current_user
+        self.feed = feed or PaperFeed(collection=[])
+
+
+DASH = Dashboard()
+
 ################################################################################
 # HTML DIVS
 ################################################################################
 
+# Configure static layout
 date_filter = html.Div(
     id='date-div',
     children=[
@@ -56,8 +105,8 @@ date_filter = html.Div(
             value=LOOKBACKS[0]
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 topics_filter = html.Div(
@@ -72,8 +121,8 @@ topics_filter = html.Div(
             value='Any'
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 title_filter = html.Div(
@@ -90,8 +139,8 @@ title_filter = html.Div(
                    'textAlign': 'center'}
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 author_filter = html.Div(
@@ -108,8 +157,18 @@ author_filter = html.Div(
                    'textAlign': 'center'}
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
+)
+
+search_button = html.Div(
+    html.Div(
+        id='button-div',
+        children=[
+            html.Button('Search', id='button'),
+        ],
+        className='one column custom_button',
+    )
 )
 
 layout = html.Div([
@@ -158,13 +217,6 @@ layout = html.Div([
                                 ],
                                 className='eight columns',
                             ),
-                            html.Div(
-                                id='button-div',
-                                children=[
-                                    html.Button('Clickbait', id='button'),
-                                ],
-                                className='one column custom_button',
-                            ),
                         ],
                         className='row'
                     ),
@@ -173,7 +225,7 @@ layout = html.Div([
             ),
             
             html.Div(
-                id='static-components',
+                id='feed-1',
                 children=[
                     html.Div(
                         id='filters',
@@ -181,20 +233,51 @@ layout = html.Div([
                             author_filter,
                             topics_filter,
                             title_filter,
-                            date_filter
+                            date_filter,
+                            search_button
                         ]
                     ),
-                ],
-                className='row'
-            ),
-            
-            html.Div(
-                id='dynamic-components',
-                children=[
+                    html.Hr(),
                     html.Div(
                         id='feed-div',
                         children=[
-                            dcc.Loading(id='display-feed', type='cube')
+                            dcc.Loading(
+                                id='display-feed',
+                                type='cube',
+                                children=[
+                                    html.Ul(
+                                        children=[
+                                            html.Li(id=f'paper-placeholder-{i}')
+                                            for i in
+                                            range(DASH.feed.display_size - 1)
+                                        ],
+                                        style={'list-style-type': 'none'}
+                                    )
+                                
+                                ]
+                            )
+                        ]
+                    )
+                ],
+                className='six columns'
+            ),
+            
+            html.Div(
+                id='feed-2',
+                children=[
+                    dcc.Checklist(
+                        id='checklist',
+                        options=[
+                            {'label': 'Similar', 'value': 'similar'},
+                            {'label': 'References', 'value': 'references'},
+                            {'label': 'Citations', 'value': 'citations'}
+                        ],
+                        value=['Citations']
+                    ),
+                    html.Hr(),
+                    html.Div(
+                        id='feed2-div',
+                        children=[
                         ],
                         style={
                             'textAlign' : 'center',
@@ -202,12 +285,13 @@ layout = html.Div([
                         },
                     ),
                 ],
-                className='row',
+                # className='six columns'
             ),
         ],
         className='page',
     )
 ])
+
 
 ################################################################################
 # CALLBACKS
@@ -221,15 +305,19 @@ layout = html.Div([
 def display_filters(feed: str):
     """ Choose available filters based on the type of feed """
     if feed == 'Explore':
-        return [topics_filter, author_filter, title_filter, date_filter]
+        return [topics_filter, author_filter, title_filter, date_filter, search_button]
     elif feed == 'Recommended':
-        return [date_filter]
+        return [date_filter, search_button]
     else:
         return []
 
 
 @app.callback(
-    Output('display-feed', 'children'),
+    [
+        # Output('display-feed', 'children'),
+        Output(f'paper-placeholder-{i}', 'children')
+        for i in range(DASH.feed.display_size - 1)
+    ],
     [
         Input('button', 'n_clicks'),
     ],
@@ -276,6 +364,11 @@ def display_feed(
 
 # The following 3 callbacks should probably be handled with elastic search
 def _soft_match_title(user_title: str) -> Set[PaperID]:
+    search_results = set()
+    if user_title == 'Any':
+        for papers in TITLES.values():
+            search_results |= papers
+        return search_results
     search_results = set(search_index(user_title, "abstract", index))
     return search_results
 
@@ -298,45 +391,86 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     return matched
 
 
-def exploration_feed(username: str,
-                     author: str,
-                     title: str,
-                     topic: str,
-                     date: str
-                     ) -> html.Ul:
-    matched_titles = _soft_match_title(title)
-    matched_authors = _soft_match_author(author)
-    matched_topics = _soft_match_topic(topic)
+@app.callback(
+    Output('feed2-div', 'children'),
+    [Input('checklist', 'value')] +
+    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
+     range(DASH.feed.display_size - 1)]
+)
+def feed2(checklist, *args):
+    """ Dynamically create callbacks for each paper? """
+    print(dash.callback_context.triggered)
+    idx = int(
+        dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
+            -1])
+    paper = DB[DASH.feed.displayed[idx]]
     
-    print(author, title, topic)
-    
-    # print(f'Matched authors: {matched_authors}')
-    # print(f'Matched titles: {matched_titles}')
-    # print(f'Matched topics: {matched_topics}')
-    
-    possible_papers = matched_authors & matched_topics & matched_titles
-    print(len(possible_papers))
-    possible_papers = list(possible_papers)[:10]
-    
+    print(f'PAPER SELECTED: {paper.title}')
     li = list()
-    for paper in possible_papers:
-        paper = DB[paper]
+
+    to_display = list()
+    for category in checklist:
+        if category == 'similar':
+            pass
+        elif category == 'citations':
+            to_display += paper.citations
+        elif category == 'references':
+            to_display += paper.references
+    
+    for p in tqdm(to_display):
+        if p.arxivId is None or p.arxivId not in DB:
+            continue
+        paper = DB[p.arxivId]
+        print(f'FOUND CITATION: {p.arxivId}')
         li.append(html.Li(
             children=[
                 html.H5([html.A(paper.title, href=paper.url)]),
                 html.H6([', '.join([author.name for author in paper.authors]),
                          ' -- ', paper.year, ' -- ', paper.venue]),
+                html.Button('More like this', id=f'more-{paper.doi}'),
+                html.Button('Less like this', id=f'less-{paper.doi}'),
                 html.Hr(),
             ],
             style={'list-style-type': 'none'}
         ))
-    
     return html.Ul(children=li)
+
+
+def exploration_feed(username: str,
+                     author: str,
+                     title: str,
+                     topic: str,
+                     date: str
+                     ):
+    matched_titles = _soft_match_title(title)
+    matched_authors = _soft_match_author(author)
+    matched_topics = _soft_match_topic(topic)
+    
+    print(author, title, topic)
+    # print(f'Matched authors: {matched_authors}')
+    # print(f'Matched titles: {matched_titles}')
+    # print(f'Matched topics: {matched_topics}')
+    
+    possible_papers = list(matched_authors & matched_topics & matched_titles)
+    DASH.feed = PaperFeed(collection=possible_papers)
+    
+    li = list()
+    for i, paper_id in enumerate(DASH.feed.displayed):
+        paper = DB[paper_id]
+        li.append(
+            [
+                html.H5([html.A(paper.title, href=paper.url)]),
+                html.H6([', '.join([author.name for author in paper.authors]),
+                         ' -- ', paper.year, ' -- ', paper.venue]),
+                html.Hr(),
+            ]
+        )
+    return li
 
 
 def recommendation_feed(username: str, date: str) -> html.Ul:
     """ Generates a list of recommended paper based on user's preference.
-    
+
     """
     # TODO: dump preferences in SQL instead of flat files
     
