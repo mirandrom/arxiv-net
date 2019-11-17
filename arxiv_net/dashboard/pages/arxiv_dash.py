@@ -112,6 +112,16 @@ author_filter = html.Div(
     className='two columns',
 )
 
+search_button = html.Div(
+    html.Div(
+        id='button-div',
+        children=[
+            html.Button('Search', id='button'),
+        ],
+        className='one column custom_button',
+    )
+)
+
 layout = html.Div([
     html.Div(
         children=[
@@ -158,13 +168,6 @@ layout = html.Div([
                                 ],
                                 className='eight columns',
                             ),
-                            html.Div(
-                                id='button-div',
-                                children=[
-                                    html.Button('Clickbait', id='button'),
-                                ],
-                                className='one column custom_button',
-                            ),
                         ],
                         className='row'
                     ),
@@ -181,7 +184,8 @@ layout = html.Div([
                             author_filter,
                             topics_filter,
                             title_filter,
-                            date_filter
+                            date_filter,
+                            search_button
                         ]
                     ),
                 ],
@@ -221,9 +225,9 @@ layout = html.Div([
 def display_filters(feed: str):
     """ Choose available filters based on the type of feed """
     if feed == 'Explore':
-        return [topics_filter, author_filter, title_filter, date_filter]
+        return [topics_filter, author_filter, title_filter, date_filter, search_button]
     elif feed == 'Recommended':
-        return [date_filter]
+        return [date_filter, search_button]
     else:
         return []
 

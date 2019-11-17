@@ -8,9 +8,67 @@
     padding: 20px;
 }
 
+input {
+	margin: 2px;
+}
+
+#button-div {
+	padding: 23px 0px 0px 0px ! important;
+}
+
+.links {
+	margin-top: -24px ! important;
+	height: 24px ! important;
+	background-color: black;
+	
+	text-align: right;
+}
+
+#title-div {
+	white-space: nowrap;
+}
+
+h2 {
+	margin: 0px ! important;
+}
+
+.tab {
+	font-size: 24px ! important;
+	padding: 2px ! important;
+	margin: 2px ! important;
+	border: none ! important;
+}
+
+.tab--selected {
+	background-color: pink ! important;
+	color: black ! important; 
+	background-image: none ! important;
+	border: none ! important;
+	
+	
+}
+
+#feed {
+
+}
+
+#user-name {
+	color: white;
+	float: left;
+	width: 90%;
+}
+
+#logout {
+	float: right;
+	padding-right: 8px;
+}
+
+.logo {
+	height: 0px;
+}
+
 .header {
-    background-image: linear-gradient(to bottom right, rgb(115, 132, 212), rgb(169, 120, 219) ,rgb(211, 107, 218), rgb(237, 84, 199),
-    rgb(244, 70, 157), rgb(240, 90, 127), rgb(238, 117, 124), rgb(230, 193, 119));
+    background-color: darkred;
     align-items: center;
     display: block;
 }
