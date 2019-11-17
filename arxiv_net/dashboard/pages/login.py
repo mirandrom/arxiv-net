@@ -11,6 +11,25 @@ layout = html.Div(
         html.Div(
             className="container",
             children=[
+                html.Div(
+                    id='header',
+                    children=[
+                        html.Div(
+                            [
+                                html.Div(
+                                    id='title-div',
+                                    children=[
+                                        html.H2("arXiv NET"),
+                                    ],
+                                    className='two columns title',
+                                )
+                            ],
+                            className='row'
+                        ),
+                    ],
+                    className='header'
+                ),
+
                 dcc.Location(id='url_login', refresh=True),
                 html.Div('''Please log in to continue:''', id='h1'),
                 html.Div(

@@ -3,18 +3,21 @@ import pickle
 import re
 import tempfile
 from contextlib import contextmanager
-from arxiv_net import ROOT_DIR
+
+from arxiv_net import DATA_DIR
+
 
 # global settings
 # -----------------------------------------------------------------------------
 class Config(object):
     # main paper information repo file
-    db_path = f'{ROOT_DIR}/../data/db.p'
-    user_db_path = f'{ROOT_DIR}/../data/users.db'
-    ss_db_path = f'{ROOT_DIR}/../data/ss_db.p'
-    ss_ref_db_path = f'{ROOT_DIR}/../data/ss_ref_db.p'
-    bert_title_embed_db_path = f'{ROOT_DIR}/../data/bert_title_embed_db.p'
-    bert_abstract_embed_db_path = "bert_abstract_embed_db.p"
+    db_path = f'{DATA_DIR}/db.p'
+    user_db_path = f'{DATA_DIR}/users.db'
+    ss_db_path = f'{DATA_DIR}/ss_db.p'
+    ss_ref_db_path = f'{DATA_DIR}/ss_ref_db.p'
+    bert_title_embed_db_path = f'{DATA_DIR}/bert_title_embed_db.p'
+    bert_abstract_embed_db_path = f"{DATA_DIR}/bert_abstract_embed_db.p"
+    sim_path = f"{DATA_DIR}/similarities.p"
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
     txt_dir = os.path.join('data', 'txt')
@@ -22,7 +25,6 @@ class Config(object):
     # intermediate pickles
     tfidf_path = 'tfidf.p'
     meta_path = 'tfidf_meta.p'
-    sim_path = 'sim_dict.p'
     user_sim_path = 'user_sim.p'
     # sql database file
     db_serve_path = 'db2.p'  # an enriched db.p with various preprocessing info
