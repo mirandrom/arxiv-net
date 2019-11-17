@@ -77,18 +77,16 @@ class PaperFeed:
         self.current_page -= 1
 
 
-
 class Dashboard:
     """ Encapsulates all methods related to the dash.
     """
-
+    
     def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
         self.current_user = current_user
         self.feed = feed or PaperFeed(collection=[])
 
 
 DASH = Dashboard()
-
 
 ################################################################################
 # HTML DIVS
@@ -107,8 +105,8 @@ date_filter = html.Div(
             value=LOOKBACKS[0]
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 topics_filter = html.Div(
@@ -123,8 +121,8 @@ topics_filter = html.Div(
             value='Any'
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 title_filter = html.Div(
@@ -141,8 +139,8 @@ title_filter = html.Div(
                    'textAlign': 'center'}
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 author_filter = html.Div(
@@ -159,8 +157,8 @@ author_filter = html.Div(
                    'textAlign': 'center'}
         )
     ],
-    style={'display': 'block'},
-    className='two columns',
+    # style={'display': 'block'},
+    # className='two columns',
 )
 
 search_button = html.Div(
@@ -227,7 +225,7 @@ layout = html.Div([
             ),
             
             html.Div(
-                id='static-components',
+                id='feed-1',
                 children=[
                     html.Div(
                         id='filters',
@@ -239,13 +237,7 @@ layout = html.Div([
                             search_button
                         ]
                     ),
-                ],
-                className='row'
-            ),
-            
-            html.Div(
-                id='dynamic-components',
-                children=[
+                    html.Hr(),
                     html.Div(
                         id='feed-div',
                         children=[
@@ -255,28 +247,34 @@ layout = html.Div([
                                 children=[
                                     html.Ul(
                                         children=[
-                                            html.Li(id=f'paper-placeholder-{i}',
-                                                    style={
-                                                        'list-style-type': 'none',
-                                                    }
-                                                    )
+                                            html.Li(id=f'paper-placeholder-{i}')
                                             for i in
                                             range(DASH.feed.display_size - 1)
                                         ],
-                                        style={
-                                            'list-style-type': 'none',
-                                            'width'          : '50%',
-                                        }
+                                        style={'list-style-type': 'none'}
                                     )
                                 
                                 ]
                             )
+                        ]
+                    )
+                ],
+                className='six columns'
+            ),
+            
+            html.Div(
+                id='feed-2',
+                children=[
+                    dcc.Checklist(
+                        id='checklist',
+                        options=[
+                            {'label': 'Similar', 'value': 'similar'},
+                            {'label': 'References', 'value': 'references'},
+                            {'label': 'Citations', 'value': 'citations'}
                         ],
-                        style={
-                            'textAlign' : 'center',
-                            'fontFamily': 'Avenir',
-                        },
+                        value=['Citations']
                     ),
+                    html.Hr(),
                     html.Div(
                         id='feed2-div',
                         children=[
@@ -287,7 +285,7 @@ layout = html.Div([
                         },
                     ),
                 ],
-                className='row',
+                # className='six columns'
             ),
         ],
         className='page',
@@ -312,8 +310,6 @@ def display_filters(feed: str):
         return [date_filter, search_button]
     else:
         return []
-
-
 
 
 @app.callback(
@@ -361,10 +357,7 @@ def display_feed(
     if feed == 'Recommended':
         return recommendation_feed(username, **ff)
     elif feed == 'Explore':
-        
-        out = exploration_feed(username, **ff)
-        print(out)
-        return out
+        return exploration_feed(username, **ff)
     else:
         raise ValueError(f'Unknown feed {feed}')
 
@@ -400,21 +393,35 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
 
 @app.callback(
     Output('feed2-div', 'children'),
+    [Input('checklist', 'value')] +
     [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-     range(DASH.feed.display_size - 1)],
+     range(DASH.feed.display_size - 1)]
 )
-def feed2(*args):
+def feed2(checklist, *args):
     """ Dynamically create callbacks for each paper? """
     print(dash.callback_context.triggered)
-    idx = int(dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[-1])
+    idx = int(
+        dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
+            -1])
     paper = DB[DASH.feed.displayed[idx]]
     
-    print(f'PAPER SELECTED: {paper}')
+    print(f'PAPER SELECTED: {paper.title}')
     li = list()
-    citations = paper.citations[:DASH.feed.display_size]
-    print(citations)
-    for ref in tqdm(citations):
-        paper = DB[ref.arxivId]
+
+    to_display = list()
+    for category in checklist:
+        if category == 'similar':
+            pass
+        elif category == 'citations':
+            to_display += paper.citations
+        elif category == 'references':
+            to_display += paper.references
+    
+    for p in tqdm(to_display):
+        if p.arxivId is None or p.arxivId not in DB:
+            continue
+        paper = DB[p.arxivId]
+        print(f'FOUND CITATION: {p.arxivId}')
         li.append(html.Li(
             children=[
                 html.H5([html.A(paper.title, href=paper.url)]),
@@ -440,7 +447,6 @@ def exploration_feed(username: str,
     matched_topics = _soft_match_topic(topic)
     
     print(author, title, topic)
-    
     # print(f'Matched authors: {matched_authors}')
     # print(f'Matched titles: {matched_titles}')
     # print(f'Matched topics: {matched_topics}')
