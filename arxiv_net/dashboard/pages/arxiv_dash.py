@@ -1,8 +1,9 @@
 import json
 import pickle
 from collections import defaultdict
-from typing import Dict, Set
+from typing import Dict, Set, List, Optional
 
+import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
@@ -11,9 +12,9 @@ from tqdm import tqdm
 
 from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.server import app
+from arxiv_net.textsearch.whoosh import get_index, search_index
 from arxiv_net.users import USER_DIR
 from arxiv_net.utilities import Config
-from arxiv_net.textsearch.whoosh import get_index, search_index
 
 ################################################################################
 # DATA LOADING
@@ -40,10 +41,60 @@ for paper_id, paper in tqdm(DB.items()):
         TOPICS[topic.topic].add(paper_id)
     TITLES[paper.title].add(paper_id)
 
+
+class PaperFeed:
+    """" A tracker for displayed / selected papers
+    """
+    
+    def __init__(self,
+                 collection: List[PaperID],
+                 selected: Optional[PaperID] = None,
+                 display_size: int = 10,
+                 ):
+        self.collection = collection
+        self.display_size = display_size
+        self.selected = selected
+        self.current_page = 0
+        self.total_pages = len(self.collection) // display_size + 1
+    
+    @property
+    def displayed(self):
+        return self.collection[self.display_size * self.current_page:
+                               self.display_size * self.current_page + self.display_size]
+    
+    def __call__(self, *args, **kwargs):
+        return self.displayed
+    
+    def reset(self):
+        self.collection = list()
+        self.selected = None
+        self.current_page = 0
+    
+    def pg_up(self):
+        self.current_page += 1
+    
+    def pg_down(self):
+        self.current_page -= 1
+
+
+
+class Dashboard:
+    """ Encapsulates all methods related to the dash.
+    """
+
+    def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
+        self.current_user = current_user
+        self.feed = feed or PaperFeed(collection=[])
+
+
+DASH = Dashboard()
+
+
 ################################################################################
 # HTML DIVS
 ################################################################################
 
+# Configure static layout
 date_filter = html.Div(
     id='date-div',
     children=[
@@ -194,7 +245,37 @@ layout = html.Div([
                     html.Div(
                         id='feed-div',
                         children=[
-                            dcc.Loading(id='display-feed', type='cube')
+                            dcc.Loading(
+                                id='display-feed',
+                                type='cube',
+                                children=[
+                                    html.Ul(
+                                        children=[
+                                            html.Li(id=f'paper-placeholder-{i}',
+                                                    style={
+                                                        'list-style-type': 'none',
+                                                    }
+                                                    )
+                                            for i in
+                                            range(DASH.feed.display_size - 1)
+                                        ],
+                                        style={
+                                            'list-style-type': 'none',
+                                            'width'          : '50%',
+                                        }
+                                    )
+                                
+                                ]
+                            )
+                        ],
+                        style={
+                            'textAlign' : 'center',
+                            'fontFamily': 'Avenir',
+                        },
+                    ),
+                    html.Div(
+                        id='feed2-div',
+                        children=[
                         ],
                         style={
                             'textAlign' : 'center',
@@ -208,6 +289,7 @@ layout = html.Div([
         className='page',
     )
 ])
+
 
 ################################################################################
 # CALLBACKS
@@ -228,8 +310,14 @@ def display_filters(feed: str):
         return []
 
 
+
+
 @app.callback(
-    Output('display-feed', 'children'),
+    [
+        # Output('display-feed', 'children'),
+        Output(f'paper-placeholder-{i}', 'children')
+        for i in range(DASH.feed.display_size - 1)
+    ],
     [
         Input('button', 'n_clicks'),
     ],
@@ -269,13 +357,21 @@ def display_feed(
     if feed == 'Recommended':
         return recommendation_feed(username, **ff)
     elif feed == 'Explore':
-        return exploration_feed(username, **ff)
+        
+        out = exploration_feed(username, **ff)
+        print(out)
+        return out
     else:
         raise ValueError(f'Unknown feed {feed}')
 
 
 # The following 3 callbacks should probably be handled with elastic search
 def _soft_match_title(user_title: str) -> Set[PaperID]:
+    search_results = set()
+    if user_title == 'Any':
+        for papers in TITLES.values():
+            search_results |= papers
+        return search_results
     search_results = set(search_index(user_title, "abstract", index))
     return search_results
 
@@ -298,12 +394,43 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     return matched
 
 
+@app.callback(
+    Output('feed2-div', 'children'),
+    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
+     range(DASH.feed.display_size - 1)],
+)
+def feed2(*args):
+    """ Dynamically create callbacks for each paper? """
+    print(dash.callback_context.triggered)
+    idx = int(dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[-1])
+    paper = DB[DASH.feed.displayed[idx]]
+    
+    print(f'PAPER SELECTED: {paper}')
+    li = list()
+    citations = paper.citations[:DASH.feed.display_size]
+    print(citations)
+    for ref in tqdm(citations):
+        paper = DB[ref.arxivId]
+        li.append(html.Li(
+            children=[
+                html.H5([html.A(paper.title, href=paper.url)]),
+                html.H6([', '.join([author.name for author in paper.authors]),
+                         ' -- ', paper.year, ' -- ', paper.venue]),
+                html.Button('More like this', id=f'more-{paper.doi}'),
+                html.Button('Less like this', id=f'less-{paper.doi}'),
+                html.Hr(),
+            ],
+            style={'list-style-type': 'none'}
+        ))
+    return html.Ul(children=li)
+
+
 def exploration_feed(username: str,
                      author: str,
                      title: str,
                      topic: str,
                      date: str
-                     ) -> html.Ul:
+                     ):
     matched_titles = _soft_match_title(title)
     matched_authors = _soft_match_author(author)
     matched_topics = _soft_match_topic(topic)
@@ -314,29 +441,26 @@ def exploration_feed(username: str,
     # print(f'Matched titles: {matched_titles}')
     # print(f'Matched topics: {matched_topics}')
     
-    possible_papers = matched_authors & matched_topics & matched_titles
-    print(len(possible_papers))
-    possible_papers = list(possible_papers)[:10]
+    possible_papers = list(matched_authors & matched_topics & matched_titles)
+    DASH.feed = PaperFeed(collection=possible_papers)
     
     li = list()
-    for paper in possible_papers:
-        paper = DB[paper]
-        li.append(html.Li(
-            children=[
+    for i, paper_id in enumerate(DASH.feed.displayed):
+        paper = DB[paper_id]
+        li.append(
+            [
                 html.H5([html.A(paper.title, href=paper.url)]),
                 html.H6([', '.join([author.name for author in paper.authors]),
                          ' -- ', paper.year, ' -- ', paper.venue]),
                 html.Hr(),
-            ],
-            style={'list-style-type': 'none'}
-        ))
-    
-    return html.Ul(children=li)
+            ]
+        )
+    return li
 
 
 def recommendation_feed(username: str, date: str) -> html.Ul:
     """ Generates a list of recommended paper based on user's preference.
-    
+
     """
     # TODO: dump preferences in SQL instead of flat files
     
