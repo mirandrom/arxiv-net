@@ -1,3 +1,4 @@
+import datetime
 import json
 import pickle
 from collections import defaultdict
@@ -5,7 +6,7 @@ from typing import Dict, Set, List, Optional
 from tqdm import tqdm
 from pathlib import Path
 import pandas as pd
-
+import dash_cytoscape as cyto
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
@@ -101,6 +102,7 @@ class Dashboard:
     def __init__(self, current_user: str = 'default', feed: PaperFeed = None):
         self.current_user = current_user
         self.feed = feed or PaperFeed(collection=[])
+        self.focus_feed = PaperFeed(collection=[])
 
 
 DASH = Dashboard()
@@ -306,7 +308,7 @@ explore_feed_layout = html.Div(
     id='explore-feed',
     children=[
         html.Div(
-            id='feed-1',
+            id='search-fee',
             children=[
                 html.Div(
                     id='filters',
@@ -340,11 +342,11 @@ explore_feed_layout = html.Div(
                     ]
                 )
             ],
-            className='six columns'
+            className='four columns'
         ),
     
         html.Div(
-            id='feed-2',
+            id='focus-feed',
             children=[
                 dcc.Checklist(
                     id='checklist',
@@ -353,7 +355,9 @@ explore_feed_layout = html.Div(
                         {'label': 'References', 'value': 'references'},
                         {'label': 'Citations', 'value': 'citations'}
                     ],
-                    value=['Citations']
+                    value=['Citations'],
+                    labelStyle={'display': 'inline-block'},
+
                 ),
                 html.Hr(),
                 html.Div(
@@ -366,8 +370,68 @@ explore_feed_layout = html.Div(
                     },
                 ),
             ],
-            # className='six columns'
+            className='four columns'
         ),
+        html.Div(
+            children=[
+                cyto.Cytoscape(
+                    id='cytoscape-two-nodes',
+                    userPanningEnabled=False,
+                    userZoomingEnabled=False,
+                    autolock=True,
+                    layout={'name': 'grid', 'padding': 40, 'fit': True},
+                    style={'width': '500px', 'height': '500px', 'border': '1px solid black'},
+                    stylesheet=[
+                        {
+                            'selector': 'node',
+                            'style': {
+                                'shape': 'rectangle',
+                                'text-valign': 'center',
+                                'padding': 3,
+                                'content': 'data(label)',
+                                'text-wrap': 'wrap',
+                                'text-max-width': '12px',
+                                'font-size': 5
+                            }
+                        },
+                        {
+                            'selector': 'edge',
+                            'style': {
+                                # The default curve style does not work with certain arrows
+                                'curve-style': 'bezier',
+                                'source-arrow-shape': 'triangle',
+                                'color': 'black',
+                                'font-size': 8
+                            }
+                        },
+                        {
+                            'selector': '#one',
+                            'style': {
+                                'shape': 'rectangle',
+                                'text-valign': 'center',
+                                'width': 'label',
+                                'content': 'hi\nbye',
+                                'height': 'label',
+                                'padding': 5
+                            }
+                        },
+                        {
+                            'selector': '.parent_node',
+                            'style': {
+                                'shape': 'rectangle',
+                                'text-halign': 'left',
+                                'text-margin-x': -1,
+                                'font-size': 14,
+                                'min-width': '400px',
+                                'min-height': '250px',
+                            }
+                        }
+                    ],
+                    elements=[]
+                )
+            ],
+            className='four columns'
+        )
     ],
     className="row",
     style={
@@ -474,7 +538,7 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
             matched |= papers
     return matched
 
-
+# -----------------------------------------------------------------------------
 
 
 @app.callback(
@@ -524,8 +588,8 @@ def choose_feed(feed: str):
 def highlight_selected_paper(*args):
     classnames = ['paper-placeholder' for paper in
                   range(DASH.feed.display_size - 1)]
-    classnames[DASH.feed.selected] = 'selected-paper-div'
-    print(classnames)
+    if DASH.feed.selected is not None:
+        classnames[DASH.feed.selected] = 'selected-paper-div'
     return classnames
 
 
@@ -594,9 +658,12 @@ def display_exploration_feed(
         paper = DB[paper_id]
         li.append(
             [
-                html.H5([html.A(paper.title, href=paper.url)]),
-                html.H6([', '.join([author.name for author in paper.authors]),
-                         ' -- ', paper.year, ' -- ', paper.venue]),
+                dcc.Markdown(
+                    f"""
+                    ##### [{paper.title}]({paper.url})
+                    _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
+                    """
+                ),
                 html.Hr(),
             ]
         )
@@ -609,40 +676,43 @@ def display_exploration_feed(
      range(DASH.feed.display_size - 1)],
     [State('checklist', 'value')]
 )
-def feed2(*args):
+def focus_feed(*args):
     """  """
     triggers = dash.callback_context.triggered
     print(triggers)
     checklist = args[-1]
     idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
     DASH.feed.selected = idx
+    DASH.focus_feed.collection = list()
     paper_id = DASH.feed.displayed[idx]
     paper = DB[paper_id]
     
     print(f'PAPER SELECTED: {paper.title}')
-    li = list()
 
     to_display = list()
     for category in checklist:
         if category == 'similar':
-            pass
-            # TODO: does this actually work?
-            # to_display += list(SIMILARITIES[paper_id])
+            to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
         elif category == 'citations':
             to_display += paper.citations
         elif category == 'references':
             to_display += paper.references
-
+    
+    # TODO: sort things here + color code
+    li = list()
     for p in tqdm(to_display):
         if p.arxivId is None or p.arxivId not in DB:
             continue
+        DASH.focus_feed.collection.append(p.arxivId)
         paper = DB[p.arxivId]
-        print(f'FOUND CITATION: {p.arxivId}')
         li.append(html.Li(
             children=[
-                html.H5([html.A(paper.title, href=paper.url)]),
-                html.H6([', '.join([author.name for author in paper.authors]),
-                         ' -- ', paper.year, ' -- ', paper.venue]),
+                dcc.Markdown(
+                    f"""
+                    ##### [{paper.title}]({paper.url})
+                    _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
+                    """
+                ),
                 html.Button('More like this', id=f'more-{paper.doi}'),
                 html.Button('Less like this', id=f'less-{paper.doi}'),
                 html.Hr(),
@@ -650,6 +720,66 @@ def feed2(*args):
             style={'list-style-type': 'none'}
         ))
     return html.Ul(children=li)
+
+
+@app.callback(
+    Output('cytoscape-two-nodes', 'elements'),
+    [Input('feed2-div', 'children')],
+)
+def graph(*args):
+    print('EDITING GRAPH')
+    parent_nodes, nodes, edges = list(), list(), list()
+    
+    years = []
+    seconds_in_year = 31622400
+    x = 0
+    
+    # Get list of years
+    print(DASH.focus_feed.collection)
+    for paper_id in DASH.focus_feed.collection:
+        date = DB_ARXIV[paper_id]['published']
+        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+    
+        if date.year not in years:
+            years.append(date.year)
+            parent_nodes.append({
+                'data'   : {'id': date.year, 'label': date.year},
+                'classes': 'parent_node'
+            })
+    
+    years.sort(reverse=True)
+
+    # Generate Nodes and Edges
+    total_height = 500
+    number_of_sections = len(years)
+    section_height = total_height / number_of_sections
+    for paper_id in tqdm(DASH.focus_feed.collection):
+        paper = DB[paper_id]
+        date = DB_ARXIV[paper_id]['published']
+        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+        date_start_of_year = datetime.datetime(date.year, 1, 1)
+        seconds_difference = (date - date_start_of_year).total_seconds()
+        normalized_date = (seconds_difference / seconds_in_year)
+        year_index = years.index(date.year)
+        y = round(
+            normalized_date * section_height) + section_height * year_index
+        # print(y)
+        # print(date)
+        nodes.append({
+            'data'    : {'id'    : paper_id,
+                         'label' : str(date.year) + paper.title[:30],
+                         'parent': date.year},
+            'position': {'x': x, 'y': y}
+        })
+        x += 50
+        for reference in paper.references:
+            if reference.paperId in DASH.focus_feed.collection:
+                edges.append({'data': {'id'    : reference.paperId + "." + paper_id,
+                                       'source': reference.paperId,
+                                       'target': paper_id}})
+    print(parent_nodes + nodes + edges)
+    return parent_nodes + nodes + edges
+
 
 # -----------------------------------------------------------------------------
 # Discovery feed callbacks

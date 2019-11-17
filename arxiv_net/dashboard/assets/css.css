@@ -90,12 +90,16 @@ h2 {
 	display: inline-block;
 }
 
+#feed-2 {
+	background-color: #f4f4f4;
+}
+
 #filters {
 
 }
 
 #filters div {
-	
+
 }
 
 #filters div label {
@@ -160,6 +164,19 @@ h2 {
 
 .callout {
     float: right;
+}
+
+.paper-placeholder {
+	margin: 0px ! important;
+	padding: 0px ! important;
+}
+
+.paper-placeholder:hover {
+	background-color: lightblue;
+}
+
+.selected-paper-div {
+	background-color: pink;
 }
 
 .page {
