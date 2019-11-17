@@ -65,7 +65,7 @@ class PaperFeed:
     
     def __init__(self,
                  collection: List[PaperID],
-                 selected: Optional[PaperID] = None,
+                 selected: Optional[int] = None,
                  display_size: int = 10,
                  ):
         self.collection = collection
@@ -475,8 +475,7 @@ def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     return matched
 
 
-# -----------------------------------------------------------------------------
-# Exploration feed callbacks
+
 
 @app.callback(
     Output('filters', 'children'),
@@ -512,7 +511,23 @@ def choose_feed(feed: str):
         return [Hider.hide, Hider.show, Hider.hide]
     elif feed == 'Recommend':
         return [Hider.hide, Hider.hide, Hider.show]
-    
+
+
+# -----------------------------------------------------------------------------
+# Exploration feed callbacks
+
+@app.callback(
+    [Output(f'paper-placeholder-{i}', 'className') for i in
+     range(DASH.feed.display_size - 1)],
+    [Input('feed2-div', 'children')],
+)
+def highlight_selected_paper(*args):
+    classnames = ['paper-placeholder' for paper in
+                  range(DASH.feed.display_size - 1)]
+    classnames[DASH.feed.selected] = 'selected-paper-div'
+    print(classnames)
+    return classnames
+
 
 @app.callback(
     [
