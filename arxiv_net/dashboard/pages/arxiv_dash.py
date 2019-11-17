@@ -255,7 +255,8 @@ explore_feed_layout = html.Div(
         html.Div(
             id='focus-feed',
             children=[
-                html.Button('show_search_feed', id='hide-button'),
+                html.Button('show search feed', id='hide-button'),
+                html.Div('Related papers: '),
                 dcc.RadioItems(
                     id='radio',
                     options=[
@@ -423,13 +424,13 @@ layout = html.Div([
                                         value='Discover',
                                         children=[
                                             dcc.Tab(
-                                                label='Explore',
+                                                label='Search',
                                                 value='Explore',
                                                 style=tab_style,
                                                 selected_style=selected_style,
                                             ),
                                             dcc.Tab(
-                                                label="Recommend",
+                                                label="Library",
                                                 value="Recommend",
                                                 style=tab_style,
                                                 selected_style=selected_style

@@ -69,6 +69,19 @@ h2 {
 	max-width: none ! important;
 }
 
+#focus-feed li {
+	text-align: left;
+}
+
+#library label, #recommend-feed-div label {
+	font-size: 24px;
+}
+
+#user-library {
+	border-right: 1px solid black;
+	padding-right: 8px;
+}
+
 #checklist {
 	text-align: right;
 }
@@ -166,17 +179,23 @@ h2 {
     float: right;
 }
 
-.paper-placeholder {
+li {
+	padding: 0px ! important;
 	margin: 0px ! important;
+}
+
+.paper-placeholder .selected-paper-div {
+	margin: -24px -4px ! important;
 	padding: 0px ! important;
 }
 
 .paper-placeholder:hover {
-	background-color: lightblue;
+	background-color: #ffdee4;
 }
 
 .selected-paper-div {
-	background-color: pink;
+	background-color: darkred;
+	color: white;
 }
 
 .page {
