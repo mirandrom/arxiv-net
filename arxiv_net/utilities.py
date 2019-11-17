@@ -14,7 +14,7 @@ class Config(object):
     ss_db_path = f'{ROOT_DIR}/../data/ss_db.p'
     ss_ref_db_path = f'{ROOT_DIR}/../data/ss_ref_db.p'
     bert_title_embed_db_path = f'{ROOT_DIR}/../data/bert_title_embed_db.p'
-    bert_abstract_embed_db_path = "bert_abstract_embed_db.p"
+    bert_abstract_embed_db_path = f'{ROOT_DIR}/../data/bert_abstract_embed_db.p'
     # intermediate processing folders
     pdf_dir = os.path.join('data', 'pdf')
     txt_dir = os.path.join('data', 'txt')
