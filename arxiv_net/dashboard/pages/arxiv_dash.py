@@ -18,14 +18,15 @@ from arxiv_net.dashboard.assets.style import *
 from arxiv_net.dashboard.server import app
 from arxiv_net.textsearch.whoosh import get_index, search_index
 from arxiv_net.users import USER_DIR
-from arxiv_net.utilities import Config, ROOT_DIR
+from arxiv_net.utilities import Config
+from arxiv_net.dashboard import DASH_DIR
 
 ################################################################################
 # DATA LOADING
 ################################################################################
-DASHBOARD_DIR = ROOT_DIR / "dashboard"
 DB = pickle.load(open(Config.ss_db_path, 'rb'))
 DB_ARXIV = pickle.load(open(Config.db_path, 'rb'))
+SIMILARITIES = pickle.load(open(Config.sim_path, 'rb'))
 
 embed_db_path = Path(Config.bert_abstract_embed_db_path)
 embeds_tsne_csv_path = embed_db_path.with_name(embed_db_path.name.replace(".p", "_tsne.csv"))
@@ -309,7 +310,7 @@ layout = html.Div([
 ################################################################################
 # STATIC MARKDOWN
 ################################################################################
-discover_intro_md = (DASHBOARD_DIR / "assets/discover_intro.md").read_text()
+discover_intro_md = (DASH_DIR / "assets/discover_intro.md").read_text()
 
 ################################################################################
 # COMPONENT FACTORIES
@@ -565,7 +566,6 @@ def display_feed(
 def feed2(*args, checklist):
     """ Dynamically create callbacks for each paper? """
     print(dash.callback_context.triggered)
-    # trigger = dash.callback_context.triggered[0]['prop_id'].split('.')[0]
     idx = int(
         dash.callback_context.triggered[0]['prop_id'].split('.')[0].split('-')[
             -1])
