@@ -458,7 +458,7 @@ layout = html.Div([
                             html.Div(
                                 id='title-div',
                                 children=[
-                                    html.H2("arXiv NET"),
+                                    html.H2("ArXivNet"),
                                 ],
                                 className='two columns title',
                             ),
