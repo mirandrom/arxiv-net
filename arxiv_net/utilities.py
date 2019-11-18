@@ -14,7 +14,7 @@ class Config(object):
     db_path = f'{DATA_DIR}/db.p'
     user_db_path = f'{DATA_DIR}/users.db'
     ss_db_path = f'{DATA_DIR}/ss_db.p'
-    ss_ref_db_path = f'{DATA_DIR}/ss_ref_db.p'
+    ss_ref_db_path = f'{DATA_DIR}/ss_ref_db.pickle'
     bert_title_embed_db_path = f'{DATA_DIR}/bert_title_embed_db.p'
     bert_abstract_embed_db_path = f"{DATA_DIR}/bert_abstract_embed_db.p"
     sim_path = f"{DATA_DIR}/similarities.p"

@@ -19,7 +19,7 @@ def measure_similarity(paper: str, embedding: np.array):
 
 if __name__ == '__main__':
     
-    db = pickle.load(open(Config.ss_db_path, 'rb'))
+    db = pickle.load(open(Config.ss_db_ref_path, 'rb'))
     embeddings = pickle.load(open(Config.bert_abstract_embed_db_path, 'rb'))
 
     with Pool(cpu_count()) as p:

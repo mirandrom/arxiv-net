@@ -1,57 +1,16 @@
-import datetime
-import json
-import pickle
-from collections import defaultdict
-from typing import Dict, Set, List, Optional
-from tqdm import tqdm
-from pathlib import Path
-import pandas as pd
-import dash_cytoscape as cyto
-from collections import Counter
-
-import dash
 import dash_core_components as dcc
+import dash_cytoscape as cyto
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
-from dash.exceptions import PreventUpdate
-import plotly.graph_objs as go
+from dash.dependencies import Input, Output
 
-from arxiv_net.dashboard import DASH_DIR, LOOKBACKS, TOPICS
+from arxiv_net.dashboard import LOOKBACKS, TOPICS, DASH_DIR
 from arxiv_net.dashboard.assets.style import *
+from arxiv_net.dashboard.custom_dcc import Card, NamedRangeSlider
 from arxiv_net.dashboard.dashboard import Hider
 from arxiv_net.dashboard.pages.feeds.explore import DASH
 from arxiv_net.dashboard.server import app
-from arxiv_net.textsearch.whoosh import get_index, search_index
-from arxiv_net.users import USER_DIR
-from arxiv_net.utilities import Config
-from arxiv_net.dashboard import DASH_DIR
-from typing import NamedTuple
 
-################################################################################
-# DATA LOADING
-################################################################################
-DB = pickle.load(open(Config.ss_db_path, 'rb'))
-DB_ARXIV = pickle.load(open(Config.db_path, 'rb'))
-SIMILARITIES = pickle.load(open(Config.sim_path, 'rb'))
-
-embed_db_path = Path(Config.bert_abstract_embed_db_path)
-embeds_tsne_csv_path = embed_db_path.with_name(embed_db_path.name.replace(".p", "_tsne.csv"))
-TSNE_CSV = pd.read_csv(embeds_tsne_csv_path, dtype=str, names=["arxiv_id", "x", "y", "z"], skiprows=1)
-TSNE_CSV["Category"] = [DB_ARXIV[i]["arxiv_primary_category"]["term"] if i in DB_ARXIV else None for i in TSNE_CSV['arxiv_id']]
-TSNE_CSV["CitationVelocity"] = [DB[i].citationVelocity if i in DB else None for i in TSNE_CSV['arxiv_id']]
-TSNE_CSV["InfluentialCitationCount"] = [DB[i].influentialCitationCount if i in DB else None for i in TSNE_CSV['arxiv_id']]
-TSNE_CSV["Topics"] = [[t.topic for t in DB[i].topics] if i in DB else [] for i in TSNE_CSV['arxiv_id']]
-TSNE_CSV["Year"] = [int(DB_ARXIV[i]["published"][:4]) if i in DB_ARXIV else None for i in TSNE_CSV['arxiv_id']]
-TSNE_CSV["Title"] = [f"[{i}] {DB[i].title}" if i in DB else None for i in TSNE_CSV['arxiv_id']]
-
-# TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
-
-
-################################################################################
-# HTML DIVS
-################################################################################
-
-# Configure static layout
+# Search feed filters
 date_filter = html.Div(
     id='date-div',
     children=[
@@ -118,50 +77,10 @@ search_button = html.Div(
     className='one column custom_button',
 )
 
-################################################################################
-# STATIC MARKDOWN
-################################################################################
+# Static markdown
 discover_intro_md = (DASH_DIR / "assets/discover_intro.md").read_text()
 
-
-################################################################################
-# COMPONENT FACTORIES
-################################################################################
-def Card(children, **kwargs):
-    return html.Section(children, className="card-style")
-
-
-def NamedRangeSlider(name, short, min, max, step, val, marks=None):
-    if marks:
-        step = None
-    else:
-        marks = {i: i for i in range(min, max + 1, step)}
-
-    return html.Div(
-        style={"margin": "25px 5px 30px 0px"},
-        children=[
-            f"{name}:",
-            html.Div(
-                style={"margin-left": "5px"},
-                children=[
-                    dcc.RangeSlider(
-                        id=f"slider-{short}",
-                        min=min,
-                        max=max,
-                        marks=marks,
-                        step=step,
-                        value=val,
-                    )
-                ],
-            ),
-        ],
-    )
-
-
-################################################################################
-# LAYOUT
-################################################################################
-
+# Main layout
 discover_feed_layout = html.Div(
     id='discover-feed',
     className="row",
@@ -238,7 +157,8 @@ discover_feed_layout = html.Div(
                 html.Div(
                     className="six columns",
                     children=[
-                        dcc.Graph(id="graph-3d-plot-tsne", style={"height": "98vh"})
+                        dcc.Graph(id="graph-3d-plot-tsne",
+                                  style={"height": "98vh"})
                     ],
                 ),
                 html.Div(
@@ -291,7 +211,7 @@ explore_feed_layout = html.Div(
                                     ],
                                     style={'list-style-type': 'none'}
                                 )
-
+                            
                             ]
                         )
                     ]
@@ -313,7 +233,7 @@ explore_feed_layout = html.Div(
                     ],
                     value='similar',
                     labelStyle={'display': 'inline-block'},
-
+                
                 ),
                 html.Hr(),
                 html.Div(
@@ -335,8 +255,9 @@ explore_feed_layout = html.Div(
                     id='cytoscape-two-nodes',
                     userPanningEnabled=False,
                     userZoomingEnabled=False,
-                    layout={'name': 'preset', 'padding': 40, 'fit': True, 'autosize': True},
-                    style={'width' : '500px', 'height': '700px'},
+                    layout={'name'    : 'preset', 'padding': 40, 'fit': True,
+                            'autosize': True},
+                    style={'width': '500px', 'height': '700px'},
                     stylesheet=[
                         {
                             'selector': 'node',
@@ -348,16 +269,16 @@ explore_feed_layout = html.Div(
                                 'text-wrap'     : 'wrap',
                                 'text-max-width': '12px',
                                 'font-size'     : 12,
-                                'font-weight': 600
+                                'font-weight'   : 600
                             }
                         },
                         {
                             'selector': 'edge',
                             'style'   : {
                                 # The default curve style does not work with certain arrows
-                                'curve-style'       : 'bezier',
-                                'color'             : 'black',
-                                'font-size'         : 8
+                                'curve-style': 'bezier',
+                                'color'      : 'black',
+                                'font-size'  : 8
                             }
                         },
                         {
@@ -385,86 +306,87 @@ explore_feed_layout = html.Div(
                         },
                         {
                             'selector': '.node',
-                            'style': {
+                            'style'   : {
                                 'background-color': 'white',
-                                'border-width': '2px',
-                                'shape': 'circle',
+                                'border-width'    : '2px',
+                                'shape'           : 'circle',
                             }
                         },
                         {
                             'selector': '.main_node',
-                            'style': {
+                            'style'   : {
                                 'background-color': 'rgb(255, 220, 246)',
-                                'border-width': '2px',
-                                'border-color': 'darkred',
-                                'width': '50px',
-                                'height': '50px',
+                                'border-width'    : '2px',
+                                'border-color'    : 'darkred',
+                                'width'           : '50px',
+                                'height'          : '50px',
                             }
                         },
                         {
                             'selector': '.border-1',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#1eaedb',
                             }
                         },
                         {
                             'selector': '.border-2',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#34b6de',
                             }
                         },
                         {
                             'selector': '.border-3',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#4abee2',
                             }
                         },
                         {
                             'selector': '.border-4',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#61c6e5',
                             }
                         },
                         {
                             'selector': '.border-5',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#78cee9',
                             }
                         },
                         {
                             'selector': '.border-6',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#8ed6ed',
                             }
                         },
                         {
                             'selector': '.border-7',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#a5def0',
                             }
                         },
                         {
                             'selector': '.border-8',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#bbe6f4',
                             }
                         },
                         {
                             'selector': '.border-9',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#d2eef7',
                             }
                         },
                         {
                             'selector': '.border-10',
-                            'style': {
+                            'style'   : {
                                 'border-color': '#e8f6fb',
                             }
                         },
-                    ]
+                    ],
+                    elements=[]
                 )
             ],
-            className='four columns'
+            className='four columns',
         )
     ],
     className="row",
@@ -565,9 +487,7 @@ layout = html.Div([
 ])
 
 
-# -----------------------------------------------------------------------------
 # Callbacks
-
 @app.callback(
     Output('filters', 'children'),
     [Input('feed', 'value')]
@@ -597,4 +517,3 @@ def choose_feed(feed: str):
         return [Hider.hide, Hider.show, Hider.hide]
     elif feed == 'Recommend':
         return [Hider.hide, Hider.hide, Hider.show]
-

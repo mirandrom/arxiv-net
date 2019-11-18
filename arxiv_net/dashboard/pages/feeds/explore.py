@@ -4,11 +4,12 @@ from typing import Set
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+import numpy as np
 from dash.dependencies import Input, Output, State
 from dash.exceptions import PreventUpdate
 from tqdm import tqdm
 
-from arxiv_net.dashboard import DB, DB_ARXIV, SIMILARITIES, PaperID, TITLES, AUTHORS, TOPICS
+from arxiv_net.dashboard import DB, DB_ARXIV, PaperID, TITLES, AUTHORS, TOPICS
 from arxiv_net.dashboard.dashboard import Dashboard, Hider
 from arxiv_net.dashboard.pages.feeds.feed import PaperFeed
 from arxiv_net.dashboard.server import app
@@ -16,8 +17,11 @@ from arxiv_net.textsearch.whoosh import get_index, search_index
 
 DASH = Dashboard()
 
-__all__ = ['highlight_selected_paper', 'hide_search_feed', 'display_exploration_feed', 'focus_feed', 'graph']
+__all__ = ['highlight_selected_paper', 'hide_search_feed',
+           'display_exploration_feed', 'focus_feed', 'graph']
 
+
+# TODO: add auto-completion (https://community.plot.ly/t/auto-complete-text-suggestion-option-in-textfield/8940)
 
 def _soft_match_title(user_title: str) -> Set[PaperID]:
     search_results = set()
@@ -32,19 +36,21 @@ def _soft_match_title(user_title: str) -> Set[PaperID]:
 def _soft_match_author(user_author: str) -> Set[PaperID]:
     # TODO: Adjust for casing
     matched = set()
-    for author, papers in AUTHORS.items():
+    for author in AUTHORS.keys():
         if user_author == 'Any' or user_author in author:
-            matched |= papers
+            matched |= AUTHORS[author]
     return matched
 
 
 def _soft_match_topic(user_topic: str) -> Set[PaperID]:
     # TODO: Adjust for casing
     matched = set()
-    for topic, papers in TOPICS.items():
+    
+    for topic in TOPICS.keys():
         if user_topic == 'Any' or user_topic in topic:
-            matched |= papers
+            matched |= TOPICS[topic]
     return matched
+
 
 @app.callback(
     [Output(f'paper-placeholder-{i}', 'className') for i in
@@ -72,11 +78,11 @@ def highlight_selected_paper(*args):
 
 )
 def hide_search_feed(_, button_state):
-    print(button_state)
-    if button_state == 'show search feed':
-        return [Hider.show, 'hide search feed', 'four columns', 'four columns']
-    elif button_state == 'hide search feed':
-        return [Hider.hide, 'show search feed', 'six columns', 'six columns']
+    print(f'TRYING TO HIDE SEARCH FEED: {button_state}')
+    if button_state == 'hide_search_feed':
+        return [Hider.show, 'show_search_feed', 'four columns', 'four columns']
+    elif button_state == 'show_search_feed':
+        return [Hider.hide, 'hide_search_feed', 'six columns', 'six columns']
 
 
 @app.callback(
@@ -165,7 +171,8 @@ def display_exploration_feed(
         Output('focus-feed-div', 'children'),
         Output('focus-feed', 'style'),
     ],
-    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in range(DASH.feed.display_size)] +
+    [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
+     range(DASH.feed.display_size)] +
     [Input('radio', 'value')],
     [State('radio', 'value')]
 )
@@ -187,7 +194,8 @@ def focus_feed(*args):
     
     to_display = list()
     if category == 'similar':
-        to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
+        pass
+        # to_display += [DB[pid] for pid in SIMILARITIES[paper_id] if pid in DB]
     elif category == 'citations':
         to_display += paper.citations
     elif category == 'references':
@@ -209,7 +217,6 @@ def focus_feed(*args):
                     _{', '.join([author.name for author in paper.authors])} -- {paper.year} -- {paper.venue}_
                     """
                 ),
-                html.P(to_display.index(p) + 1, className='index'),
                 html.Button('More like this', id=f'more-{paper.doi}'),
                 html.Button('Less like this', id=f'less-{paper.doi}'),
                 html.Hr(),
@@ -221,10 +228,11 @@ def focus_feed(*args):
 
 @app.callback(
     Output('cytoscape-two-nodes', 'elements'),
-    [Input('focus-feed-div', 'children'), Input('selected_paper', 'children')],
+    [Input('focus-feed-div', 'children'),
+     # Input('selected_paper', 'children')
+     ],
 )
-
-def graph(a, selected_paper):
+def graph(a):
     if not DASH.focus_feed.collection:
         return []
     
@@ -235,9 +243,16 @@ def graph(a, selected_paper):
     x = 0
     
     # Get list of years
+    paper_dates = list()
     for paper_id in DASH.focus_feed.collection:
-        date = DB_ARXIV[paper_id]['published']
-        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+        try:
+            date = DB_ARXIV[paper_id]['published']
+            date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
+        except KeyError:
+            date = datetime.datetime(DB[paper_id].year,
+                                     np.random.randint(1, 13),
+                                     np.random.randint(1, 31), 0, 0, 0)
+        paper_dates.append(date)
         
         if date.year not in years:
             years.append(date.year)
@@ -253,14 +268,27 @@ def graph(a, selected_paper):
     x_interval = 50
     number_of_sections = len(years)
     section_height = total_height / number_of_sections
-    paper_list = DASH.focus_feed.collection
-    print(list(paper_list))
-    print(selected_paper)
+    paper_list = DASH.focus_feed.displayed
+    print(paper_list)
+    selected_paper = DASH.feed.displayed[DASH.feed.selected]
     paper_list.append(selected_paper)
-    for paper_id in tqdm(paper_list):
+    paper_dates.append(datetime.datetime(DB[selected_paper].year,
+                                         np.random.randint(1, 13),
+                                         np.random.randint(1, 31), 0, 0, 0))
+    print(years)
+    year = paper_dates[-1].year
+    print(year)
+    if year not in years:
+        years.append(year)
+        parent_nodes.append({
+            'data'   : {'id': year, 'label': year},
+            'classes': 'parent_node'
+        })
+    years.sort(reverse=True)
+    print(years)
+    print(list(zip(paper_dates, paper_list)))
+    for date, paper_id in tqdm(zip(paper_dates, paper_list)):
         paper = DB[paper_id]
-        date = DB_ARXIV[paper_id]['published']
-        date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%SZ')
         date_start_of_year = datetime.datetime(date.year, 1, 1)
         seconds_difference = (date - date_start_of_year).total_seconds()
         normalized_date = (seconds_difference / seconds_in_year)
@@ -269,15 +297,15 @@ def graph(a, selected_paper):
             normalized_date * section_height) + section_height * year_index
         # print(y)
         # print(date)
-        index = DASH.focus_feed.collection.index(paper_id) + 1
+        index = paper_list.index(paper_id) + 1
         if paper_id == selected_paper:
-            centered_x = x_interval*len(paper_list)/2
+            centered_x = x_interval * len(paper_list) / 2
             nodes.append({
-                'data': {'id': paper_id,
-                         'label': '',
-                         'parent': date.year},
+                'data'    : {'id'    : paper_id,
+                             'label' : '',
+                             'parent': date.year},
                 'position': {'x': centered_x, 'y': y},
-                'classes': 'main_node'
+                'classes' : 'main_node'
             })
         else:
             nodes.append({
@@ -285,7 +313,7 @@ def graph(a, selected_paper):
                              'label' : index,
                              'parent': date.year},
                 'position': {'x': x, 'y': y},
-                'classes': 'node ' + 'border-' + str(index)
+                'classes' : 'node ' + 'border-' + str(index)
             })
         x += x_interval
         for reference in paper.references:
@@ -302,20 +330,19 @@ def graph(a, selected_paper):
     print(edges)
     return parent_nodes + nodes + edges
 
-
-# store selected paper
-@app.callback(Output('selected_paper', 'children'),
-              [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
-               range(DASH.feed.display_size)])
-def on_click(*args):
-    triggers = dash.callback_context.triggered
-    print(triggers)
-    idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
-    DASH.feed.selected = idx
-    DASH.focus_feed.collection = list()
-    paper_id = DASH.feed.displayed[idx]
-
-    return paper_id
+# # store selected paper
+# @app.callback(Output('selected_paper', 'children'),
+#               [Input(f'paper-placeholder-{i}', 'n_clicks') for i in
+#                range(DASH.feed.display_size)])
+# def on_click(*args):
+#     triggers = dash.callback_context.triggered
+#     print(triggers)
+#     idx = int(triggers[0]['prop_id'].split('.')[0].split('-')[-1])
+#     DASH.feed.selected = idx
+#     DASH.focus_feed.collection = list()
+#     paper_id = DASH.feed.displayed[idx]
+#
+#     return paper_id
 
 # # output the stored clicks in the table cell.
 # @app.callback(Output('{}-clicks'.format(store), 'children'),
