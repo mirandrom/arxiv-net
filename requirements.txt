@@ -1,3 +1,4 @@
+redisgraph
 dash
 dash-auth
 dash-core-components

@@ -2,8 +2,8 @@ import time
 from dataclasses import dataclass
 from typing import List, Dict
 
-import requests
-
+import requests as rq
+from dataclasses import asdict
 
 @dataclass
 class SsTopic:
@@ -60,10 +60,19 @@ class SsArxivPaper:
     year: int
 
 
-def get_data(arxiv_id: str, to_dataclass: bool = False):
+def get_data(s2id: str = None, arxiv_id: str = None,
+             to_dataclass: bool = False):
+    if s2id is not None and arxiv_id is not None:
+        raise Exception('S2PaperId and ArXivId are mutually exclusive')
+    
+    if s2id:
+        r = rq.get(f"http://api.semanticscholar.org/v1/paper/s2id")
+    elif arxiv_id:
+        r = rq.get(f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
+    else:
+        raise Exception('Either S2PaperId or ArXivId has to be specified')
+    
     t = 5
-    r = requests.get(
-        f"http://api.semanticscholar.org/v1/paper/arXiv:{arxiv_id}")
     if not r.ok:
         if r.status_code == 429:
             print(f"Error 429: sleeping for {t} seconds")
@@ -86,3 +95,11 @@ def _to_dataclass(r: Dict):
     r["references"] = [SsReference(**x) for x in r["references"]]
     r["topics"] = [SsTopic(**x) for x in r["topics"]]
     return SsArxivPaper(**r)
+
+
+def _asdict(paper: SsArxivPaper):
+    paper.authors = [asdict(a) if isinstance(a, SsAuthor) else a for a in paper.authors]
+    paper.references = [asdict(a) if isinstance(a, SsReference) else a for a in paper.references]
+    paper.citations = [asdict(a) if isinstance(a, SsReference) else a for a in paper.citations]
+    paper.topics = [asdict(a) if isinstance(a, SsTopic) else a for a in paper.topics]
+    return asdict(paper)
